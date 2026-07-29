@@ -10,6 +10,7 @@ import { GlobalNoticeModal } from "@/components/shared/global-notice-modal";
 import { CouponGiftModal } from "@/components/subscription/coupon-gift-modal";
 import { getDefaultPath, getSafeServerSession, getWorkspaceUser } from "@/lib/auth";
 import { getCourseBrowsePageData } from "@/lib/course-page-data";
+import { getLandingLibraryItems } from "@/lib/landing-highlights";
 import {
   getCustomerServiceDetails,
   getLandingUserCountOffset,
@@ -64,9 +65,12 @@ export default async function HomePage() {
   if (!session?.user) {
     const config = await getPlatformConfig();
     const socialLinks = getPlatformSocialLinks(config);
-    const realUserCount = await User.countDocuments({
-      role: { $in: ["STUDENT", "TEACHER"] },
-    });
+    const [realUserCount, libraryItems] = await Promise.all([
+      User.countDocuments({ role: { $in: ["STUDENT", "TEACHER"] } }),
+      // Real published courses/chapters for the library section, so the landing
+      // page links into the actual catalogue instead of showing sample cards.
+      getLandingLibraryItems(4),
+    ]);
     const landingDisplayUserCount =
       realUserCount + getLandingUserCountOffset(config);
 
@@ -76,6 +80,7 @@ export default async function HomePage() {
         customerService={getCustomerServiceDetails(config)}
         socialLinks={socialLinks}
         landingDisplayUserCount={landingDisplayUserCount}
+        libraryItems={libraryItems}
       />
     );
   }

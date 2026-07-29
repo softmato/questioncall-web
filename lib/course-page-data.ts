@@ -36,6 +36,7 @@ export type CourseCardData = {
   instructorName: string;
   instructorRole: string;
   isFeatured: boolean;
+  liveSessionsEnabled: boolean;
   lessonsCount: number;
   overallProgressPercent?: number;
   completedVideoCount?: number;
@@ -199,6 +200,7 @@ function toCourseCardData(
     instructorName?: string | null;
     instructorRole?: string | null;
     isFeatured?: boolean | null;
+    liveSessionsEnabled?: boolean | null;
   },
   lessonsCount: number,
 ): CourseCardData {
@@ -217,6 +219,7 @@ function toCourseCardData(
     instructorName: course.instructorName ?? APP_NAME,
     instructorRole: course.instructorRole ?? "TEACHER",
     isFeatured: Boolean(course.isFeatured),
+    liveSessionsEnabled: Boolean(course.liveSessionsEnabled),
     lessonsCount,
   };
 }
@@ -326,7 +329,7 @@ export async function getCourseBrowsePageData(input: {
   const courses = await Course.find({ status: "ACTIVE", mergedInto: null })
     .sort({ isFeatured: -1, createdAt: -1 })
     .select(
-      "_id slug title description subject level pricingModel price thumbnailUrl totalDurationMinutes enrollmentCount instructorName instructorRole isFeatured",
+      "_id slug title description subject level pricingModel price thumbnailUrl totalDurationMinutes enrollmentCount instructorName instructorRole isFeatured liveSessionsEnabled",
     )
     .lean();
 
@@ -392,7 +395,7 @@ export async function getCourseBrowsePageData(input: {
     const ownCourses = await Course.find({ instructorId: input.userId })
       .sort({ createdAt: -1 })
       .select(
-        "_id slug title description subject level pricingModel price thumbnailUrl totalDurationMinutes enrollmentCount instructorName instructorRole isFeatured",
+        "_id slug title description subject level pricingModel price thumbnailUrl totalDurationMinutes enrollmentCount instructorName instructorRole isFeatured liveSessionsEnabled",
       )
       .lean();
 
@@ -800,10 +803,12 @@ export async function getManageCoursePageData(input: {
 }
 
 export async function getCourseWatchPageData(input: {
+  // Anonymous visitors (userId null) are allowed in: they can only ever reach a
+  // free-preview video, which is what makes previews indexable by search engines.
   slug: string;
   videoId: string;
-  userId: string;
-  role: Exclude<UserRole, null>;
+  userId: string | null;
+  role: UserRole;
 }): Promise<WatchPageData | null> {
   await connectToDatabase();
 
@@ -813,17 +818,25 @@ export async function getCourseWatchPageData(input: {
   }
 
   const canManage =
-    input.role === "ADMIN" ||
-    course.instructorId.toString() === input.userId;
+    Boolean(input.userId) &&
+    (input.role === "ADMIN" ||
+      course.instructorId.toString() === input.userId);
 
-  const enrollment = canManage
-    ? null
-    : await CourseEnrollment.findOne({
-        courseId: course._id,
-        studentId: input.userId,
-      })
-        .select("_id")
-        .lean();
+  // A draft/archived course must never be reachable by the public, even at a
+  // preview URL — only its instructor/admin can open it.
+  if (course.status !== "ACTIVE" && !canManage) {
+    return null;
+  }
+
+  const enrollment =
+    canManage || !input.userId
+      ? null
+      : await CourseEnrollment.findOne({
+          courseId: course._id,
+          studentId: input.userId,
+        })
+          .select("_id")
+          .lean();
 
   const [currentVideo, sectionsRaw, videosRaw, progressItems] = await Promise.all([
     CourseVideo.findOne({
@@ -836,7 +849,7 @@ export async function getCourseWatchPageData(input: {
     CourseVideo.find({ courseId: course._id })
       .sort({ sectionId: 1, order: 1 })
       .lean(),
-    canManage || !enrollment
+    canManage || !enrollment || !input.userId
       ? Promise.resolve([])
       : VideoProgress.find({
           studentId: input.userId,

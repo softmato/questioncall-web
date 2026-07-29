@@ -273,10 +273,13 @@ export async function getChapterManageData(input: {
 }
 
 export async function getChapterWatchData(input: {
+  // Anonymous visitors (userId null) are allowed in: without an account they can
+  // only ever resolve a free-preview item, which is what makes previews
+  // indexable by search engines.
   slug: string;
   contentId: string;
-  userId: string;
-  role: Exclude<UserRole, null>;
+  userId: string | null;
+  role: UserRole;
 }): Promise<ChapterWatchData | null> {
   await connectToDatabase();
 
@@ -303,7 +306,9 @@ export async function getChapterWatchData(input: {
   const hasAccess =
     canManage ||
     chapter.pricingModel === "FREE" ||
-    (await checkChapterAccess(input.userId, chapter._id.toString()));
+    (input.userId
+      ? await checkChapterAccess(input.userId, chapter._id.toString())
+      : false);
   const isPreview =
     !hasAccess && previewIds(contents, chapter.freePreviewCount ?? 0).has(input.contentId);
 

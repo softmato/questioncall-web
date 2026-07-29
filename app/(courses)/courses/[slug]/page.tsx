@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { notFound, redirect } from "next/navigation";
 
 import { getSafeServerSession } from "@/lib/auth";
@@ -91,7 +90,7 @@ export default async function CourseDetailPage({
 
   return (
     <>
-      <Script
+      <script
         id="course-structured-data"
         type="application/ld+json"
         dangerouslySetInnerHTML={{

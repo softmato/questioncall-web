@@ -5,7 +5,9 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: "/",
+      // `allow` entries win over the broader `disallow` prefixes below, so the
+      // public marketing surfaces stay crawlable while checkout stays private.
+      allow: ["/", "/courses", "/chapters", "/pricing", "/quiz"],
       disallow: [
         "/api/",
         "/admin/",

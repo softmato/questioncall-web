@@ -111,6 +111,37 @@ const organizationStructuredData = {
   sameAs: [],
 };
 
+const websiteStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: APP_NAME,
+  url: SITE_URL,
+  description: APP_DESCRIPTION,
+};
+
+/**
+ * The public sections we want Google to consider for sitelinks. Sitelinks are
+ * algorithmic — this only declares the candidates; the crawlable pages, the
+ * sitemap entries and the header nav are what actually earn them.
+ */
+const siteNavigationStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  itemListElement: [
+    { name: "Courses", url: absoluteUrl("/courses") },
+    { name: "Chapters", url: absoluteUrl("/chapters") },
+    { name: "Quiz Practice", url: absoluteUrl("/quiz") },
+    { name: "Pricing", url: absoluteUrl("/pricing") },
+    { name: "Student Sign Up", url: absoluteUrl("/auth/signup/student") },
+    { name: "Teacher Sign Up", url: absoluteUrl("/auth/signup/teacher") },
+  ].map((entry, index) => ({
+    "@type": "SiteNavigationElement",
+    position: index + 1,
+    name: entry.name,
+    url: entry.url,
+  })),
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -139,11 +170,28 @@ export default function RootLayout({
           src="https://widget.cloudinary.com/v2.0/global/all.js"
           strategy="afterInteractive"
         />
-        <Script
+        {/* Plain <script>, not next/script: only plain tags are emitted into the
+            server-rendered HTML. Via next/script this JSON-LD lived solely in the
+            RSC flight payload, so crawlers never saw it. */}
+        <script
           id="organization-structured-data"
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: serializeJsonLd(organizationStructuredData),
+          }}
+        />
+        <script
+          id="website-structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: serializeJsonLd(websiteStructuredData),
+          }}
+        />
+        <script
+          id="site-navigation-structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: serializeJsonLd(siteNavigationStructuredData),
           }}
         />
       </body>

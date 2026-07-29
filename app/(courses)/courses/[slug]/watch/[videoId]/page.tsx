@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeftIcon, BookOpenIcon } from "lucide-react";
@@ -5,14 +6,54 @@ import { ArrowLeftIcon, BookOpenIcon } from "lucide-react";
 import { SectionAccordion } from "@/components/course/SectionAccordion";
 import { VideoPlayer } from "@/components/course/VideoPlayer";
 import { Button } from "@/components/ui/button";
+import { APP_NAME } from "@/lib/constants";
 import { getSafeServerSession } from "@/lib/auth";
 import { getCourseWatchPageData } from "@/lib/course-page-data";
-import { createNoIndexMetadata } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
+import {
+  absoluteUrl,
+  createNoIndexMetadata,
+  createPageMetadata,
+} from "@/lib/seo";
 
-export const metadata = createNoIndexMetadata({
-  title: "Watch Lesson",
-  description: "Private lesson playback and progress tracking.",
-});
+/**
+ * Free-preview lessons are public pages, so they get real indexable metadata.
+ * Everything behind enrolment stays noindex.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; videoId: string }>;
+}): Promise<Metadata> {
+  const { slug, videoId } = await params;
+  const preview = await getCourseWatchPageData({
+    slug,
+    videoId,
+    userId: null,
+    role: null,
+  });
+
+  if (!preview?.isPreview) {
+    return createNoIndexMetadata({
+      title: "Watch Lesson",
+      description: "Private lesson playback and progress tracking.",
+    });
+  }
+
+  return createPageMetadata({
+    title: `${preview.currentVideo.title} — free preview`,
+    description:
+      preview.currentVideo.description ??
+      `Watch "${preview.currentVideo.title}" from ${preview.course.title} free, no account needed.`,
+    path: `/courses/${slug}/watch/${videoId}`,
+    keywords: [
+      preview.course.title,
+      preview.currentVideo.title,
+      "free lesson",
+      "free preview",
+    ],
+  });
+}
 
 export default async function CourseWatchPage({
   params,
@@ -20,20 +61,23 @@ export default async function CourseWatchPage({
   params: Promise<{ slug: string; videoId: string }>;
 }) {
   const session = await getSafeServerSession();
-
-  if (!session?.user?.id || !session.user.role) {
-    redirect("/auth/signin");
-  }
-
   const { slug, videoId } = await params;
+
+  // No session is fine — the data layer only resolves free-preview videos for
+  // anonymous viewers, so previews stay open to the public and to crawlers.
   const data = await getCourseWatchPageData({
     slug,
     videoId,
-    userId: session.user.id,
-    role: session.user.role,
+    userId: session?.user?.id ?? null,
+    role: session?.user?.role ?? null,
   });
 
   if (!data) {
+    // Signed out and it wasn't a preview: the lesson may well be theirs once
+    // they log in, so send them to sign-in rather than a dead end.
+    if (!session?.user?.id) {
+      redirect(`/auth/signin?callbackUrl=/courses/${slug}/watch/${videoId}`);
+    }
     redirect(`/courses/${slug}`);
   }
 
@@ -42,8 +86,42 @@ export default async function CourseWatchPage({
     .slice(0, data.course.freePreviewCount)
     .map((video) => video._id);
 
+  const isAnonymous = !session?.user?.id;
+
+  const previewStructuredData = data.isPreview
+    ? {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        name: data.currentVideo.title,
+        description:
+          data.currentVideo.description ??
+          `Free preview lesson from ${data.course.title}.`,
+        url: absoluteUrl(`/courses/${data.course.slug}/watch/${data.currentVideo._id}`),
+        isPartOf: {
+          "@type": "Course",
+          name: data.course.title,
+          url: absoluteUrl(`/courses/${data.course.slug}`),
+        },
+        publisher: {
+          "@type": "EducationalOrganization",
+          name: APP_NAME,
+          url: absoluteUrl("/"),
+        },
+        isAccessibleForFree: true,
+      }
+    : null;
+
   return (
     <div className="min-h-svh bg-[#f6f8fb] dark:bg-background">
+      {previewStructuredData ? (
+        <script
+          id="course-preview-structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: serializeJsonLd(previewStructuredData),
+          }}
+        />
+      ) : null}
       <div className="border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Button asChild variant="ghost" size="icon">
@@ -80,12 +158,20 @@ export default async function CourseWatchPage({
                 You&apos;re watching a free preview
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Enroll or buy the course to unlock every lesson and save your
-                progress.
+                {isAnonymous
+                  ? "No account needed for this lesson. Create a free account to save your progress and unlock the rest of the course."
+                  : "Enroll or buy the course to unlock every lesson and save your progress."}
               </p>
-              <Button asChild className="mt-4 bg-emerald-600 hover:bg-emerald-700">
-                <Link href={`/courses/${data.course.slug}`}>Unlock full course</Link>
-              </Button>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
+                  <Link href={`/courses/${data.course.slug}`}>Unlock full course</Link>
+                </Button>
+                {isAnonymous ? (
+                  <Button asChild variant="outline">
+                    <Link href="/auth/signup/student">Create free account</Link>
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

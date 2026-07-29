@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { BookOpenIcon, GraduationCapIcon, UserCircle2Icon } from "lucide-react";
+import {
+  BookOpenIcon,
+  GraduationCapIcon,
+  LayersIcon,
+  UserCircle2Icon,
+} from "lucide-react";
 
 import { LogoMark } from "@/components/shared/logo";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
@@ -54,6 +59,20 @@ export function CourseHeader({ user }: CourseHeaderProps) {
               <BookOpenIcon className="mr-1 size-4" />
               Courses
             </Link>
+          </Button>
+          {/* Public sections — crawlable from every page so search engines can
+              discover chapters, quizzes and pricing, not just the sign-up pages. */}
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+            <Link href="/chapters">
+              <LayersIcon className="mr-1 size-4" />
+              Chapters
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+            <Link href="/quiz">Quiz</Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+            <Link href="/pricing">Pricing</Link>
           </Button>
           {user && (
             <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
@@ -118,6 +137,18 @@ export function CourseHeader({ user }: CourseHeaderProps) {
                 <BookOpenIcon className="mr-1 size-4" />
                 Courses
               </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost" className="shrink-0">
+              <Link href="/chapters">
+                <LayersIcon className="mr-1 size-4" />
+                Chapters
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost" className="shrink-0">
+              <Link href="/quiz">Quiz</Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost" className="shrink-0">
+              <Link href="/pricing">Pricing</Link>
             </Button>
             {user ? (
               <>

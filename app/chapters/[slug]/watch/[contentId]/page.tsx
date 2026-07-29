@@ -1,18 +1,56 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeftIcon, BookOpenIcon } from "lucide-react";
 
 import { getSafeServerSession } from "@/lib/auth";
 import { getChapterWatchData } from "@/lib/chapter-page-data";
-import { createNoIndexMetadata } from "@/lib/seo";
+import { APP_NAME } from "@/lib/constants";
+import { serializeJsonLd } from "@/lib/json-ld";
+import {
+  absoluteUrl,
+  createNoIndexMetadata,
+  createPageMetadata,
+} from "@/lib/seo";
 import { ChapterContentList } from "@/components/chapter/ChapterContentList";
 import { ChapterContentPlayer } from "@/components/chapter/ChapterContentPlayer";
 import { Button } from "@/components/ui/button";
 
-export const metadata = createNoIndexMetadata({
-  title: "Chapter Content",
-  description: "Private chapter playback.",
-});
+/**
+ * Free-preview chapter items are public pages, so they get indexable metadata.
+ * Everything behind enrolment stays noindex.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; contentId: string }>;
+}): Promise<Metadata> {
+  const { slug, contentId } = await params;
+  const preview = await getChapterWatchData({
+    slug,
+    contentId,
+    userId: null,
+    role: null,
+  });
+
+  // Resolving anonymously at all means the item is public — either a free
+  // preview, or an item in a FREE chapter. Anything else stays out of the index.
+  if (!preview) {
+    return createNoIndexMetadata({
+      title: "Chapter Content",
+      description: "Private chapter playback.",
+    });
+  }
+
+  return createPageMetadata({
+    title: `${preview.currentContent.title} — free preview`,
+    description:
+      preview.currentContent.description ??
+      `Open "${preview.currentContent.title}" from the ${preview.chapter.title} chapter free, no account needed.`,
+    path: `/chapters/${slug}/watch/${contentId}`,
+    keywords: [preview.chapter.title, preview.currentContent.title, "free preview"],
+  });
+}
 
 export default async function ChapterWatchPage({
   params,
@@ -20,24 +58,58 @@ export default async function ChapterWatchPage({
   params: Promise<{ slug: string; contentId: string }>;
 }) {
   const session = await getSafeServerSession();
-  if (!session?.user?.id || !session.user.role) {
-    redirect("/auth/signin");
-  }
-
   const { slug, contentId } = await params;
+
+  // No session is fine — the data layer only resolves free-preview items for
+  // anonymous viewers, so previews stay open to the public and to crawlers.
   const data = await getChapterWatchData({
     slug,
     contentId,
-    userId: session.user.id,
-    role: session.user.role,
+    userId: session?.user?.id ?? null,
+    role: session?.user?.role ?? null,
   });
 
   if (!data) {
+    if (!session?.user?.id) {
+      redirect(`/auth/signin?callbackUrl=/chapters/${slug}/watch/${contentId}`);
+    }
     redirect(`/chapters/${slug}`);
   }
 
+  const isAnonymous = !session?.user?.id;
+
+  const previewStructuredData =
+    isAnonymous && data.currentContent.type === "VIDEO"
+      ? {
+          "@context": "https://schema.org",
+          "@type": "VideoObject",
+          name: data.currentContent.title,
+          description:
+            data.currentContent.description ??
+            `Free preview from the ${data.chapter.title} chapter.`,
+          url: absoluteUrl(
+            `/chapters/${data.chapter.slug}/watch/${data.currentContent._id}`,
+          ),
+          publisher: {
+            "@type": "EducationalOrganization",
+            name: APP_NAME,
+            url: absoluteUrl("/"),
+          },
+          isAccessibleForFree: true,
+        }
+      : null;
+
   return (
     <div className="min-h-svh bg-[#f6f8fb] dark:bg-background">
+      {previewStructuredData ? (
+        <script
+          id="chapter-preview-structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: serializeJsonLd(previewStructuredData),
+          }}
+        />
+      ) : null}
       <div className="border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Button asChild variant="ghost" size="icon">
@@ -71,11 +143,20 @@ export default async function ChapterWatchPage({
                 You&apos;re viewing a free preview
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Unlock the chapter to access every item.
+                {isAnonymous
+                  ? "No account needed for this item. Create a free account to unlock the rest of the chapter."
+                  : "Unlock the chapter to access every item."}
               </p>
-              <Button asChild className="mt-4 bg-emerald-600 hover:bg-emerald-700">
-                <Link href={`/chapters/${data.chapter.slug}`}>Unlock chapter</Link>
-              </Button>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
+                  <Link href={`/chapters/${data.chapter.slug}`}>Unlock chapter</Link>
+                </Button>
+                {isAnonymous ? (
+                  <Button asChild variant="outline">
+                    <Link href="/auth/signup/student">Create free account</Link>
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

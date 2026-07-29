@@ -39,6 +39,11 @@ import { getSignInPath, getSignUpPath } from "@/lib/user-paths";
 import { APP_NAME, CONTACT_SERVICE_EMAIL } from "@/lib/constants";
 import { ChevronDown, PlusIcon } from "lucide-react"; 
 import type { PlatformSocialLinks } from "@/models/PlatformConfig";
+import {
+  formatLandingDuration,
+  getLandingItemColor,
+  type LandingLibraryItem,
+} from "@/lib/landing-library";
 import { SocialHandlesDirect } from "@/components/shared/social-handles-hover"; 
 
 const subscribeToHydration = () => () => {};
@@ -3219,61 +3224,105 @@ function QuizPortal({ isDark }: { isDark: boolean }) {
 }
 
 /* ─────────────────────── COURSE LIBRARY ─────────────────────── */
-function CourseLibrary({ isDark }: { isDark: boolean }) {
+/** Shown only when nothing is published yet, so the section never renders empty. */
+const SAMPLE_LIBRARY_ITEMS = [
+  {
+    subject: "Mathematics",
+    title: "Differentiation Essentials",
+    level: "Grade 11-12",
+    uploader: "Verified Teacher",
+    color: "#1f766e",
+    pricing: "PAID",
+    price: "NPR 499",
+    videos: 18,
+    duration: "4h 20m",
+    liveSessions: true,
+    isFeatured: true,
+    href: "/courses",
+    thumbnailUrl: null as string | null,
+    kind: "COURSE" as const,
+  },
+  {
+    subject: "Physics",
+    title: "Mechanics and Motion Foundations",
+    level: "Grade 10",
+    uploader: "Verified Teacher",
+    color: "#2176ae",
+    pricing: "FREE",
+    price: null,
+    videos: 12,
+    duration: "3h 10m",
+    liveSessions: false,
+    isFeatured: false,
+    href: "/courses",
+    thumbnailUrl: null as string | null,
+    kind: "COURSE" as const,
+  },
+  {
+    subject: "Chemistry",
+    title: "Organic Chemistry Basics",
+    level: "Grade 11",
+    uploader: "Admin",
+    color: "#7c3aed",
+    pricing: "SUBSCRIPTION",
+    price: null,
+    videos: 16,
+    duration: "4h 45m",
+    liveSessions: true,
+    isFeatured: false,
+    href: "/courses",
+    thumbnailUrl: null as string | null,
+    kind: "COURSE" as const,
+  },
+  {
+    subject: "English",
+    title: "Essay Writing Fundamentals",
+    level: "Grade 9-10",
+    uploader: "Verified Teacher",
+    color: "#f59e0b",
+    pricing: "FREE",
+    price: null,
+    videos: 10,
+    duration: "2h 35m",
+    liveSessions: false,
+    isFeatured: false,
+    href: "/courses",
+    thumbnailUrl: null as string | null,
+    kind: "COURSE" as const,
+  },
+];
+
+function CourseLibrary({
+  isDark,
+  items = [],
+}: {
+  isDark: boolean;
+  items?: LandingLibraryItem[];
+}) {
   const { ref, visible } = useScrollReveal();
   const border = isDark ? "rgba(31,118,110,0.22)" : "rgba(31,118,110,0.16)";
 
-  const courses = [
-    {
-      subject: "Mathematics",
-      title: "Differentiation Essentials",
-      level: "Grade 11-12",
-      uploader: "Verified Teacher",
-      color: "#1f766e",
-      pricing: "PAID",
-      price: "NPR 499",
-      videos: 18,
-      duration: "4h 20m",
-      liveSessions: true,
-      isFeatured: true,
-    },
-    {
-      subject: "Physics",
-      title: "Mechanics and Motion Foundations",
-      level: "Grade 10",
-      uploader: "Verified Teacher",
-      color: "#2176ae",
-      pricing: "FREE",
-      videos: 12,
-      duration: "3h 10m",
-      liveSessions: false,
-      isFeatured: false,
-    },
-    {
-      subject: "Chemistry",
-      title: "Organic Chemistry Basics",
-      level: "Grade 11",
-      uploader: "Admin",
-      color: "#7c3aed",
-      pricing: "SUBSCRIPTION",
-      videos: 16,
-      duration: "4h 45m",
-      liveSessions: true,
-      isFeatured: false,
-    },
-    {
-      subject: "English",
-      title: "Essay Writing Fundamentals",
-      level: "Grade 9-10",
-      uploader: "Verified Teacher",
-      color: "#f59e0b",
-      pricing: "FREE",
-      videos: 10,
-      duration: "2h 35m",
-      liveSessions: false,
-      isFeatured: false,
-    },
-  ];
+  // Real published catalogue when there is one; samples only as a cold-start
+  // placeholder so a brand-new platform doesn't show an empty section.
+  const courses =
+    items.length > 0
+      ? items.map((item, index) => ({
+          subject: item.subject,
+          title: item.title,
+          level: item.level,
+          uploader: item.uploader,
+          color: getLandingItemColor(item, index),
+          pricing: item.pricing,
+          price: item.price ?? undefined,
+          videos: item.lessons,
+          duration: formatLandingDuration(item.durationMinutes),
+          liveSessions: item.liveSessions,
+          isFeatured: item.isFeatured,
+          href: item.href,
+          thumbnailUrl: item.thumbnailUrl,
+          kind: item.kind,
+        }))
+      : SAMPLE_LIBRARY_ITEMS;
 
   const pricingBadge = (pricing: string, price?: string) => {
     if (pricing === "FREE") {
@@ -3330,14 +3379,21 @@ function CourseLibrary({ isDark }: { isDark: boolean }) {
               duration,
               liveSessions,
               isFeatured,
+              href,
+              thumbnailUrl,
+              kind,
             },
             i,
           ) => {
-            const badge = pricingBadge(pricing, price);
+            const badge = pricingBadge(pricing, price ?? undefined);
             return (
-              <div
-                key={title}
+              <Link
+                href={href}
+                key={`${title}-${i}`}
                 style={{
+                  display: "block",
+                  textDecoration: "none",
+                  color: "inherit",
                   borderRadius: 18,
                   border: `1px solid ${border}`,
                   background: isDark
@@ -3345,7 +3401,7 @@ function CourseLibrary({ isDark }: { isDark: boolean }) {
                     : "rgba(255,255,255,0.85)",
                   backdropFilter: "blur(16px)",
                   overflow: "hidden",
-                  cursor: "default",
+                  cursor: "pointer",
                   opacity: visible ? 1 : 0,
                   transform: visible ? "translateY(0)" : "translateY(20px)",
                   transition: `all 0.45s ${i * 0.08}s`,
@@ -3373,6 +3429,26 @@ function CourseLibrary({ isDark }: { isDark: boolean }) {
                   </div>
                 )}
 
+                {kind === "CHAPTER" && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 12,
+                      right: 12,
+                      zIndex: 10,
+                      background: "rgba(31,118,110,0.9)",
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: "3px 10px",
+                      borderRadius: 20,
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    CHAPTER
+                  </div>
+                )}
+
                 <div
                   style={{
                     height: 140,
@@ -3384,29 +3460,47 @@ function CourseLibrary({ isDark }: { isDark: boolean }) {
                     position: "relative",
                   }}
                 >
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      backgroundImage: `repeating-linear-gradient(45deg,${color}08 0,${color}08 1px,transparent 0,transparent 50%)`,
-                      backgroundSize: "20px 20px",
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: "50%",
-                      background: `${color}20`,
-                      border: `2px solid ${color}40`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      position: "relative",
-                    }}
-                  >
-                    <PlayCircleIcon size={28} color={color} />
-                  </div>
+                  {thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbnailUrl}
+                      alt={title}
+                      loading="lazy"
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          backgroundImage: `repeating-linear-gradient(45deg,${color}08 0,${color}08 1px,transparent 0,transparent 50%)`,
+                          backgroundSize: "20px 20px",
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: "50%",
+                          background: `${color}20`,
+                          border: `2px solid ${color}40`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          position: "relative",
+                        }}
+                      >
+                        <PlayCircleIcon size={28} color={color} />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div style={{ padding: "14px 16px" }}>
@@ -3463,7 +3557,7 @@ function CourseLibrary({ isDark }: { isDark: boolean }) {
                         color: isDark ? "#e5e7eb" : "#1f2937",
                       }}
                     >
-                      {videos} videos · {duration}
+                      {videos} {videos === 1 ? "video" : "videos"} · {duration}
                     </span>
                     {liveSessions && (
                       <>
@@ -3513,7 +3607,7 @@ function CourseLibrary({ isDark }: { isDark: boolean }) {
                     </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           },
         )}
@@ -3980,7 +4074,13 @@ function Footer({
 
         <div className="lpb-footer-links" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <h4 style={{ fontSize: 12, fontWeight: 800, color: isDark ? "#9ca3af" : "#6b7280", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Quick Links</h4>
+          {/* Public content sections come first: these are the crawlable entry
+              points Google can surface alongside the sign-up links. */}
           {[
+            ["/courses", "Courses"],
+            ["/chapters", "Chapters"],
+            ["/quiz", "Quiz Practice"],
+            ["/pricing", "Pricing"],
             [getSignInPath(), "Sign in"],
             [getSignUpPath("STUDENT"), "Students"],
             [getSignUpPath("TEACHER"), "Teachers"],
@@ -4454,11 +4554,13 @@ export function PublicLanding({
   customerService = DEFAULT_CUSTOMER_SERVICE_DETAILS,
   socialLinks,
   landingDisplayUserCount = 0,
+  libraryItems = [],
 }: {
   trialDays?: number;
   customerService?: CustomerServiceDetails;
   socialLinks?: PlatformSocialLinks;
   landingDisplayUserCount?: number;
+  libraryItems?: LandingLibraryItem[];
 }) {
   const { resolvedTheme } = useTheme();
   const hasHydrated = useHasHydrated();
@@ -4485,7 +4587,7 @@ export function PublicLanding({
         <ForStudents isDark={isDark} trialDays={trialDays} />
         <ForTeachers isDark={isDark} />
         <QuizPortal isDark={isDark} />
-        <CourseLibrary isDark={isDark} />
+        <CourseLibrary isDark={isDark} items={libraryItems} />
         <Comparison isDark={isDark} />
         <FAQSection isDark={isDark} />
         <CTASection isDark={isDark} trialDays={trialDays} />
