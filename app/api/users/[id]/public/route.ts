@@ -10,6 +10,7 @@ import Question from "@/models/Question";
 import Answer from "@/models/Answer";
 import Course from "@/models/Course";
 import ProfileView from "@/models/ProfileView";
+import { questionSummary } from "@/lib/question-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -161,7 +162,7 @@ export async function GET(request: Request, context: RouteParams) {
         type: isVideoUrl(url) ? "video" : "image",
         questionId:
           question?._id?.toString() ?? String(answer.questionId ?? ""),
-        questionTitle: question?.title ?? "Answered question",
+        questionTitle: questionSummary(question ?? {}, 80, "Answered question"),
       }));
     });
 

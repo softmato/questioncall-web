@@ -84,8 +84,9 @@ export type FeedQuestion = QuestionRecordShape & {
 
 /** Body shape for POST /api/questions */
 export type CreateQuestionPayload = {
-  title: string;
-  body: string;
+  /** Optional — the camera-first ask flow can post a photo with no title. */
+  title?: string;
+  body?: string;
   images?: string[];
   answerFormat: AnswerFormat;
   answerVisibility: AnswerVisibility;

@@ -31,11 +31,12 @@ const questionSchema = new Schema(
       required: true,
       index: true,
     },
+    // Optional: a question can be nothing but a photo of the problem. When a
+    // student does type one it still has to fit the 180-char cap.
     title: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
-      minlength: 3,
       maxlength: 180,
     },
     body: {

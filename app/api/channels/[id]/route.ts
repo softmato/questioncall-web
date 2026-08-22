@@ -12,6 +12,7 @@ import Message from "@/models/Message";
 import Answer from "@/models/Answer";
 import type { ChannelDetail, ChatMessage } from "@/types/channel";
 import type { AnswerFormat } from "@/types/question";
+import { questionSummary } from "@/lib/question-summary";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -117,7 +118,7 @@ export async function GET(request: Request, context: RouteParams) {
       ratingGiven: channel.ratingGiven ?? null,
       createdAt: new Date(channel.createdAt!).toISOString(),
       updatedAt: new Date(channel.updatedAt!).toISOString(),
-      questionTitle: question?.title || "Untitled",
+      questionTitle: questionSummary(question ?? {}),
       questionBody: question?.body || "",
       questionImages: Array.isArray(question?.images) ? question.images : [],
       answerFormat: question?.answerFormat || "ANY",

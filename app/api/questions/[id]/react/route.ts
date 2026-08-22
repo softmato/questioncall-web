@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { REACTION_TYPES } from "@/lib/question-types";
 import { emitQuestionUpdated } from "@/lib/pusher/pusherServer";
 import { notifyUser } from "@/lib/notifications/notify-user";
+import { questionSummary } from "@/lib/question-summary";
 import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Channel from "@/models/Channel";
 import Question from "@/models/Question";
@@ -118,7 +119,7 @@ export async function POST(request: Request, context: RouteParams) {
     const askerId = asker._id.toString();
     if (reactionAdded && askerId !== authenticatedUser.id) {
       const reactorName = authenticatedUser.name;
-      const questionTitle = question.title.slice(0, 80);
+      const questionTitle = questionSummary(question, 80, "your photo question");
       after(async () => {
         await notifyUser({
           userId: askerId,

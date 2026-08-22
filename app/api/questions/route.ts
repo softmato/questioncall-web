@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { emitQuestionCreated } from "@/lib/pusher/pusherServer";
 import { notifyUser } from "@/lib/notifications/notify-user";
 import { ANSWER_FORMATS } from "@/lib/question-types";
+import { questionSummary } from "@/lib/question-summary";
 import Question from "@/models/Question";
 import User from "@/models/User";
 import type { CreateQuestionPayload, FeedQuestion } from "@/types/question";
@@ -31,13 +32,31 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateQuestionPayload;
 
-    if (
-      typeof body.title !== "string" ||
-      body.title.trim().length < 3 ||
-      body.title.trim().length > 180
-    ) {
+    // The title is optional — the mobile ask flow is camera-first, so a photo
+    // of the problem is a complete question on its own. What we do require is
+    // that a question carries *something* answerable: a title or an image.
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const images = Array.isArray(body.images)
+      ? body.images.filter((url): url is string => typeof url === "string" && !!url.trim())
+      : [];
+
+    if (title.length > 0 && title.length < 3) {
       return NextResponse.json(
-        { error: "Title must be between 3 and 180 characters" },
+        { error: "Title must be at least 3 characters" },
+        { status: 400 },
+      );
+    }
+
+    if (title.length > 180) {
+      return NextResponse.json(
+        { error: "Title must be 180 characters or fewer" },
+        { status: 400 },
+      );
+    }
+
+    if (!title && images.length === 0) {
+      return NextResponse.json(
+        { error: "Add a photo or a short title so it can be answered" },
         { status: 400 },
       );
     }
@@ -131,9 +150,9 @@ export async function POST(request: Request) {
 
     const question = await Question.create({
       askerId: user.id,
-      title: body.title.trim(),
+      title,
       body: questionBody,
-      images: Array.isArray(body.images) ? body.images : [],
+      images,
       answerFormat: requestedAnswerFormat,
       answerVisibility: body.answerVisibility || "PUBLIC",
       subject: body.subject?.trim() || undefined,
@@ -195,7 +214,7 @@ export async function POST(request: Request) {
             .limit(100)
             .lean<{ _id: { toString(): string } }[]>();
 
-          const message = `New ${subject} question: ${feedQuestion.title.slice(0, 80)}`;
+          const message = `New ${subject} question: ${questionSummary(feedQuestion, 80)}`;
           await Promise.allSettled(
             interestedUsers.map((u) =>
               notifyUser({

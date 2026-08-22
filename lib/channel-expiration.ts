@@ -14,6 +14,7 @@ import { recordWalletHistoryEvent } from "@/lib/wallet-history";
 import { incrementDailyTargetCount } from "@/lib/daily-targets";
 import type { FeedQuestion } from "@/types/question";
 import Question from "@/models/Question";
+import { questionSummary } from "@/lib/question-summary";
 
 const BAYESIAN_SEED_VOTES = 5;
 const BAYESIAN_SEED_SCORE = 1;
@@ -311,7 +312,7 @@ export async function processExpiredChannels(
             type: "AUTO_CLOSE_REWARD",
             title: "Auto-close reward",
             description: question?.title
-              ? `Auto-rated ${AUTO_CLOSE_RATING}/5 for "${question.title}" after the asker did not respond.`
+              ? `Auto-rated ${AUTO_CLOSE_RATING}/5 for "${questionSummary(question)}" after the asker did not respond.`
               : `Auto-rated ${AUTO_CLOSE_RATING}/5 after the asker did not respond.`,
             pointsDelta: pointsEarned,
             metadata: {
@@ -414,7 +415,7 @@ export async function processExpiredChannels(
         type: "TIMEOUT_PENALTY",
         title: "Timeout penalty",
         description: question?.title
-          ? `You did not answer "${question.title}" before the deadline.`
+          ? `You did not answer "${questionSummary(question)}" before the deadline.`
           : "You did not submit an answer before the deadline.",
         pointsDelta: -penalty,
         metadata: {

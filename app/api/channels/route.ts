@@ -8,6 +8,7 @@ import "@/models/Question";
 import Channel from "@/models/Channel";
 import Message from "@/models/Message";
 import type { ChannelListItem } from "@/types/channel";
+import { questionSummary } from "@/lib/question-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -124,7 +125,7 @@ export async function GET(request: Request) {
 
         return {
           id: ch._id.toString(),
-          questionTitle: questionObj?.title || "Untitled",
+          questionTitle: questionSummary(questionObj ?? {}),
           counterpartId: counterpart?._id?.toString() || "",
           counterpartName: counterpart?.name || "Unknown",
           counterpartImage: counterpart?.userImage || undefined,

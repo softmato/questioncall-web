@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import { getChannelRoomName, prepareChannelRoom } from "@/lib/livekit-room";
 import { emitQuestionUpdated, emitChannelMessage, emitNotification, emitNewChannel } from "@/lib/pusher/pusherServer";
+import { questionSummary } from "@/lib/question-summary";
 import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Channel from "@/models/Channel";
 import Message from "@/models/Message";
@@ -88,7 +89,7 @@ export async function POST(_request: Request, context: RouteParams) {
         : `${formatDurationMinutes} minutes`;
 
     // Create the auto-message from acceptor — concise, includes the question title
-    const autoMessageContent = `✅ Question accepted! Answer coming within ${durationText}.\n\n📌 "${question.title}"`;
+    const autoMessageContent = `✅ Question accepted! Answer coming within ${durationText}.\n\n📌 "${questionSummary(question)}"`;
 
     const [channel, autoMessage, acceptor] = await Promise.all([
       Channel.create({
@@ -194,7 +195,7 @@ export async function POST(_request: Request, context: RouteParams) {
       ratingGiven: null,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
-      questionTitle: question.title,
+      questionTitle: questionSummary(question),
       questionBody: question.body,
       questionImages: Array.isArray(question.images) ? question.images : [],
       answerFormat: question.answerFormat,
@@ -217,7 +218,7 @@ export async function POST(_request: Request, context: RouteParams) {
     after(async () => {
       const channelListItem = {
         id: channel._id.toString(),
-        questionTitle: question.title,
+        questionTitle: questionSummary(question),
         counterpartName: acceptorName,
         counterpartImage: (acceptor as { userImage?: string | null } | null)?.userImage || undefined,
         status: "ACTIVE",

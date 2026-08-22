@@ -14,6 +14,7 @@ import { calcTeacherPayoutBreakdown } from "@/lib/points";
 import { recordWalletHistoryEvent } from "@/lib/wallet-history";
 import { incrementDailyTargetCount } from "@/lib/daily-targets";
 import type { FeedQuestion } from "@/types/question";
+import { questionSummary } from "@/lib/question-summary";
 
 const BAYESIAN_SEED_VOTES = 5;
 const BAYESIAN_SEED_SCORE = 1;
@@ -200,7 +201,7 @@ export async function POST(
         type: "LOW_RATING_PENALTY",
         title: "Low-rating penalty",
         description: question?.title
-          ? `Student rated "${question.title}" with 1/5 stars.`
+          ? `Student rated "${questionSummary(question)}" with 1/5 stars.`
           : "Student rated your solution with 1/5 stars.",
         pointsDelta: -penalty,
         metadata: {
@@ -354,7 +355,7 @@ export async function POST(
           type: "ANSWER_REWARD",
           title: "Answer reward",
           description: question?.title
-            ? `Student rated "${question.title}" with ${rating}/5 stars.`
+            ? `Student rated "${questionSummary(question)}" with ${rating}/5 stars.`
             : `Student rated your solution ${rating}/5 stars.`,
           pointsDelta: pointsEarned,
             metadata: {
