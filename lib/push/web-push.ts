@@ -49,6 +49,15 @@ type NotificationPayload = {
    * process start, so it lands on those devices — it is the same path their
    * chat notifications already arrive on. This does NOT replace the data-only
    * push (see the long comment below); it is a second tier behind it.
+   *
+   * The name is now half a lie, and deliberately kept: the app's
+   * CallNotificationService overrides handleIntent, which runs before Firebase
+   * decides to draw, so whenever our process DOES come up this tier is claimed
+   * and raised as the same CallStyle ring the primary would have produced —
+   * and is dropped outright if the primary already surfaced the call, which is
+   * what stops the two tiers stacking. Firebase only draws it when nothing
+   * native managed to. What this flag actually controls is the wire format:
+   * a payload the system can render unaided, as the last line of defence.
    */
   forceSystemRendered?: boolean;
 };

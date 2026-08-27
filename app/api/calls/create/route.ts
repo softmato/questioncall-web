@@ -301,6 +301,13 @@ export async function POST(request: Request) {
     // notification lives *inside* onMessageReceived, it never runs either. The
     // callee gets absolute silence, which is how this shipped.
     //
+    // Since CallNotificationService started overriding handleIntent, this tier
+    // is no longer only a plain notification: if our process comes up at all,
+    // the app claims this push before Firebase draws it and raises the proper
+    // CallStyle ring instead — or drops it silently when the primary already
+    // surfaced the call. Firebase's flat rendering is now the floor, not the
+    // ceiling.
+    //
     // So if the call is still unanswered a few seconds on, re-send it as an
     // ordinary notification-payload push. The FCM SDK draws those with no
     // process start required (the same path chat notifications already arrive
@@ -309,10 +316,14 @@ export async function POST(request: Request) {
     // visibility. Worst case degrades from "nothing at all" to "a ringing
     // notification you tap to answer".
     //
-    // Devices where the ring worked never reach the send: answering or
-    // declining moves the session out of CREATED/RINGING, and if one does slip
-    // through while the app is alive, CallDispatchStore.claim() has already
-    // claimed the id and the native service stays quiet.
+    // Devices where the ring worked mostly never reach the send: answering or
+    // declining moves the session out of CREATED/RINGING. One still slips
+    // through whenever the callee simply has not picked up yet — 5s into a 30s
+    // ring is the normal case, not an edge case — and CallDispatchStore.claim()
+    // is what keeps that from becoming a second tray entry beside a ring that
+    // is already going. That only holds because handleIntent routes this tier
+    // through the same claim; before it did, the duplicate was drawn by
+    // Firebase where no client-side dedupe could reach it.
     after(async () => {
       try {
         await new Promise((resolve) => setTimeout(resolve, RING_FALLBACK_DELAY_MS));
