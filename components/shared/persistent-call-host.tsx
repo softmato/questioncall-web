@@ -28,6 +28,7 @@ import {
   CHANNEL_WARNING_THRESHOLD_MS,
   MAX_CHANNEL_TIME_EXTENSIONS,
 } from "@/lib/channel-timer";
+import { CALL_ROOM_OPTIONS } from "@/lib/call-room-options";
 import { consumeCachedCallToken } from "@/lib/call-token-cache";
 import { getPusherClient } from "@/lib/pusher/pusherClient";
 import {
@@ -809,14 +810,6 @@ export function PersistentCallHost() {
   const loadingCallRoute = routeCallId && loadingCallId === routeCallId;
   const showRouteError = routeCallId && error && !activeCall;
 
-  const liveKitRoomOptions = useMemo(
-    () => ({
-      adaptiveStream: false,
-      dynacast: false,
-    }),
-    [],
-  );
-
   const liveKitClassName = useMemo(
     () =>
       cn(
@@ -894,7 +887,7 @@ export function PersistentCallHost() {
         serverUrl={activeCall.serverUrl}
         data-lk-theme="default"
         onDisconnected={handleDisconnected}
-        options={liveKitRoomOptions}
+        options={CALL_ROOM_OPTIONS}
         className={liveKitClassName}
       >
         <CallTopBar

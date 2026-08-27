@@ -186,8 +186,15 @@ const userSchema = new Schema(
     overallScore: {
       type: Number,
       default: 0,
-      min: 0,
-      max: 5,
+      // Clamped instead of validated with min/max: this is a derived, legacy
+      // field and some documents still carry out-of-range values written before
+      // the Bayesian average was introduced. A hard `max` made those documents
+      // unsaveable, which broke every unrelated user.save() (question delete,
+      // suspend, password reset, subscription activation...).
+      set: (value: number) =>
+        typeof value === "number" && Number.isFinite(value)
+          ? Math.min(5, Math.max(0, value))
+          : 0,
     },
     totalAsked: {
       type: Number,

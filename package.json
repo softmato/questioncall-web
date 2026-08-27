@@ -9,6 +9,7 @@
     "lint": "eslint",
     "migrate": "tsx scripts/migratedb.ts",
     "migrate:legal": "tsx --env-file=.env scripts/update-legal-content.ts",
+    "migrate:fix-overall-score": "tsx --env-file=.env scripts/fix-overall-score.ts",
     "migrate:drop-callsession-roomname-unique-index": "tsx scripts/drop-callsession-roomname-unique-index.ts",
     "generate:vapid": "tsx scripts/generate-vapid-keys.ts",
     "test:calls": "node scripts/run-call-checks.js"
