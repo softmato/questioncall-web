@@ -3,7 +3,12 @@ import { NextResponse, after } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { REACTION_TYPES } from "@/lib/question-types";
 import { emitQuestionUpdated } from "@/lib/pusher/pusherServer";
-import { notifyUser } from "@/lib/notifications/notify-user";
+import { getQuestionCounts } from "@/lib/question-counts";
+import {
+  cancelReactionNotification,
+  flushDueReactionNotifications,
+  queueReactionNotification,
+} from "@/lib/reaction-notifications";
 import { questionSummary } from "@/lib/question-summary";
 import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Channel from "@/models/Channel";
@@ -81,6 +86,8 @@ export async function POST(request: Request, context: RouteParams) {
       .select("_id")
       .lean();
 
+    const counts = await getQuestionCounts(question);
+
     const feedQuestion: FeedQuestion = {
       id: question._id.toString(),
       channelId: latestChannel?._id?.toString() ?? null,
@@ -90,6 +97,12 @@ export async function POST(request: Request, context: RouteParams) {
       askerImage: asker.userImage || undefined,
       title: question.title,
       body: question.body,
+      // Must be carried on every question broadcast. `images` is optional on
+      // FeedQuestion, so omitting it type-checks — but the mobile feed merges
+      // this payload over the card it already has, and a missing `images`
+      // normalizes to `[]`, which blanked the photo on a photo-only question
+      // for every client that saw the reaction until the next feed refetch.
+      images: Array.isArray(question.images) ? question.images : [],
       answerFormat: question.answerFormat,
       answerVisibility: question.answerVisibility,
       status: question.status,
@@ -106,9 +119,9 @@ export async function POST(request: Request, context: RouteParams) {
         ? new Date(question.acceptedAt).toISOString()
         : null,
       acceptedByName: acceptor?.name || null,
-      answerCount: 0,
+      answerCount: counts.answerCount,
       reactionCount: reactions.length,
-      commentCount: 0,
+      commentCount: counts.commentCount,
       createdAt: question.createdAt.toISOString(),
       updatedAt: question.updatedAt.toISOString(),
     };
@@ -116,19 +129,50 @@ export async function POST(request: Request, context: RouteParams) {
     await emitQuestionUpdated(feedQuestion).catch(() => {});
 
     // Notify the asker when someone reacts to their post (not themselves).
+    //
+    // Deferred, not sent here. Reactions are a toggle, so tapping on and off
+    // used to fire one push per tap; instead each reaction refreshes a pending
+    // row and the push goes out only once this reactor has been still for
+    // REACTION_NOTIFY_QUIET_MS. Removing the reaction cancels the pending row
+    // outright, so a tap the user immediately undoes notifies nobody.
     const askerId = asker._id.toString();
-    if (reactionAdded && askerId !== authenticatedUser.id) {
-      const reactorName = authenticatedUser.name;
-      const questionTitle = questionSummary(question, 80, "your photo question");
-      after(async () => {
-        await notifyUser({
-          userId: askerId,
-          type: "REACTION_RECEIVED",
-          message: `${reactorName} reacted to your question: ${questionTitle}`,
-          href: "/feed",
-        });
-      });
-    }
+    const isOwnQuestion = askerId === authenticatedUser.id;
+
+    // Not just `authenticatedUser.name`: the bearer-token path in unified-auth
+    // passes the JWT's name straight through with no fallback (only the session
+    // path defaults it), so a token minted without one rendered this as
+    // "undefined reacted to your question" — and the mobile app is exactly the
+    // client on that path.
+    const reactorName = authenticatedUser.name?.trim() || "Someone";
+    const questionTitle = questionSummary(question, 80, "your photo question");
+    const questionId = question._id.toString();
+
+    after(async () => {
+      if (!isOwnQuestion) {
+        if (reactionAdded) {
+          await queueReactionNotification({
+            questionId,
+            askerId,
+            reactorId: authenticatedUser.id,
+            reactorName,
+            reactionType: body.type,
+            questionSummary: questionTitle,
+          });
+        } else {
+          await cancelReactionNotification(questionId, authenticatedUser.id);
+        }
+      }
+
+      // Opportunistic flush of everyone *else's* due notifications — this
+      // reactor's row was just refreshed, so the cutoff excludes it. The cron
+      // is the guaranteed delivery mechanism, but traffic is far more frequent
+      // than any cron interval, so in practice this is what actually delivers
+      // them, and reaction notifications keep working even if the cron is
+      // never registered.
+      await flushDueReactionNotifications().catch((err) =>
+        console.error("[POST /api/questions/[id]/react] flush failed", err),
+      );
+    });
 
     return NextResponse.json(feedQuestion);
   } catch (error) {

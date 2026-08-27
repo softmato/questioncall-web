@@ -9,6 +9,8 @@ import Question from "@/models/Question";
 import Answer from "@/models/Answer";
 import User from "@/models/User";
 import Notification from "@/models/Notification";
+import { notifyUser } from "@/lib/notifications/notify-user";
+import { getQuestionCounts } from "@/lib/question-counts";
 import { getPlatformConfig } from "@/models/PlatformConfig";
 import { calcTeacherPayoutBreakdown } from "@/lib/points";
 import { recordWalletHistoryEvent } from "@/lib/wallet-history";
@@ -103,6 +105,7 @@ type PopulatedQuestion = {
   askerId?: { toString(): string } | string | null;
   title: string;
   body: string;
+  images?: string[] | null;
   answerFormat: FeedQuestion["answerFormat"];
   answerVisibility: FeedQuestion["answerVisibility"];
   subject?: string;
@@ -185,13 +188,21 @@ export async function POST(
         UPDATE_PIPELINE_OPTIONS,
       );
 
-      const penaltyNotif = await Notification.create({
-        userId: teacher._id,
+      // notifyUser (not a bare Notification.create) so this reaches the
+      // teacher's device. A 1-star close deducts points and reopens the
+      // question, and until now the teacher only learned that by opening the
+      // app — the in-app record was written and no push ever went out.
+      await notifyUser({
+        userId: teacher._id.toString(),
         type: "RATING_RECEIVED",
-        message: `Student rated 1 star. ${penalty} point(s) deducted.`,
+        title: "Rated 1 Star",
+        message: `Student rated your solution 1/5 stars. ${penalty} point(s) deducted.`,
         href: `/workspace/${channel._id.toString()}`,
-      }).catch(() => null);
-      if (penaltyNotif) await emitNotification(teacher._id.toString(), penaltyNotif);
+        extraData: {
+          channelId: channel._id.toString(),
+          rating: "1",
+        },
+      });
 
       const maxResets = config.maxQuestionResetCount || 3;
       const question = await Question.findById(channel.questionId) as PopulatedQuestion | null;
@@ -233,6 +244,7 @@ export async function POST(
           const asker = await User.findById(question.askerId) as PopulatedAsker | null;
           if (asker) {
             const reactions = Array.isArray(question.reactions) ? question.reactions : [];
+            const counts = await getQuestionCounts(question);
 
             const feedQuestion: FeedQuestion = {
               id: question._id.toString(),
@@ -243,6 +255,9 @@ export async function POST(
               askerImage: asker.userImage || undefined,
               title: question.title,
               body: question.body,
+              // See the note in the react route: omitting `images` blanks the
+              // photo on every client that merges this broadcast.
+              images: Array.isArray(question.images) ? question.images : [],
               answerFormat: question.answerFormat,
               answerVisibility: question.answerVisibility,
               status: "RESET",
@@ -257,9 +272,9 @@ export async function POST(
               acceptedById: null,
               acceptedAt: null,
               acceptedByName: null,
-              answerCount: 0,
+              answerCount: counts.answerCount,
               reactionCount: reactions.length,
-              commentCount: 0,
+              commentCount: counts.commentCount,
               createdAt: new Date(question.createdAt).toISOString(),
               updatedAt: new Date(question.updatedAt).toISOString(),
             };
@@ -381,17 +396,25 @@ export async function POST(
         console.error("[daily-targets] Failed to increment", err);
       });
 
-      const notifMessage = teacher.isMonetized && answer
-        ? `Student rated your solution ${rating}/5 stars. Points credited!`
-        : `Student rated your solution ${rating}/5 stars.`;
+      const notifMessage =
+        teacher.isMonetized && answer && pointsEarned > 0
+          ? `Student rated your solution ${rating}/5 stars. ${pointsEarned} point(s) credited!`
+          : `Student rated your solution ${rating}/5 stars.`;
 
-      const notif = await Notification.create({
-        userId: teacher._id,
+      // The normal channel-end rating. Goes through notifyUser so it lands as
+      // a push on the teacher's device, not just an in-app record.
+      await notifyUser({
+        userId: teacher._id.toString(),
         type: "RATING_RECEIVED",
+        title: `${"⭐".repeat(Math.min(Math.max(Number(rating) || 0, 1), 5))} Rating Received`,
         message: notifMessage,
         href: `/workspace/${channel._id.toString()}`,
-      }).catch(() => null);
-      if (notif) await emitNotification(teacher._id.toString(), notif);
+        extraData: {
+          channelId: channel._id.toString(),
+          rating: String(rating),
+          pointsEarned: String(pointsEarned),
+        },
+      });
     }
 
     if (pusherServer) {

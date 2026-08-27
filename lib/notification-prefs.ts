@@ -74,6 +74,7 @@ export function getNotificationPrefKey(
     case "REACTION_RECEIVED":
     case "COMMENT_RECEIVED":
     case "NEW_QUESTION_INTEREST":
+    case "NEW_QUESTION_POSTED":
       return "questions";
 
     case "CHANNEL_CLOSED":

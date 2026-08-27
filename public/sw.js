@@ -188,6 +188,9 @@ async function handlePush(event) {
     body,
     icon: payload.icon || "/icon.png",
     badge: payload.badge || "/icon.png",
+    // Large preview image (e.g. the photo attached to a new question). Ignored
+    // by browsers that don't support it, so no need to feature-detect.
+    image: payload.image || undefined,
     tag: payload.tag,
     renotify: Boolean(payload.tag),
     requireInteraction: isCallNotification ? true : Boolean(payload.requireInteraction),

@@ -194,29 +194,94 @@ export async function POST(request: Request) {
       // Pusher broadcast failure is non-fatal
     });
 
-    // Fan-out push notifications to users whose interests match the question's
-    // subject. Runs after the response via after() so it never blocks the
-    // request and still completes on serverless. Case-insensitive collation is
-    // required because interests are free-text (user-typed) while subject is a
-    // canonical dropdown value — an exact match would almost never fire.
-    if (question.subject) {
-      const subject = question.subject as string;
-      after(async () => {
-        try {
-          const interestedUsers = await User.find({
-            interests: subject,
-            _id: { $ne: user.id },
-            isSuspended: { $ne: true },
-            isDeleted: { $ne: true },
-          })
-            .collation({ locale: "en", strength: 2 })
-            .select("_id")
-            .limit(100)
-            .lean<{ _id: { toString(): string } }[]>();
+    // Fan-out push notifications for the new question. Runs after the response
+    // via after() so it never blocks the request and still completes on
+    // serverless.
+    //
+    // Two audiences, in priority order:
+    //   1. Every active teacher — "New Question Posted", carrying the question
+    //      text and its first attached photo. Questions are claimed
+    //      first-come-first-served, so this is the whole supply side of the
+    //      marketplace and must not be gated on subject.
+    //   2. Everyone else whose free-text `interests` match the question's
+    //      subject — the pre-existing, softer "Question For You".
+    //
+    // Teachers are excluded from (2) so a teacher who also listed the subject
+    // as an interest gets one push, not two.
+    after(async () => {
+      const summary = questionSummary(feedQuestion, 120);
+      const subject = typeof question.subject === "string" ? question.subject : "";
+      // Only the first image: Android BigPictureStyle and the Web Notification
+      // `image` slot both render exactly one.
+      const previewImage = images[0] ?? null;
+      const notifiedIds = new Set<string>([String(user.id)]);
 
-          const message = `New ${subject} question: ${questionSummary(feedQuestion, 80)}`;
+      try {
+        const teachers = await User.find({
+          role: "TEACHER",
+          _id: { $ne: user.id },
+          isSuspended: { $ne: true },
+          isDeleted: { $ne: true },
+        })
+          .select("_id")
+          .lean<{ _id: { toString(): string } }[]>();
+
+        const teacherMessage = subject ? `${subject}: ${summary}` : summary;
+        const message = previewImage ? `${teacherMessage} 📷` : teacherMessage;
+        for (const t of teachers) notifiedIds.add(t._id.toString());
+
+        // Chunked rather than one big Promise.allSettled: each notifyUser is a
+        // Mongo write plus an outbound push request, and the teacher roster is
+        // unbounded. Firing all of them at once would exhaust the connection
+        // pool and stall the rest of the function's requests.
+        const FANOUT_CHUNK = 25;
+        for (let i = 0; i < teachers.length; i += FANOUT_CHUNK) {
           await Promise.allSettled(
-            interestedUsers.map((u) =>
+            teachers.slice(i, i + FANOUT_CHUNK).map((t) =>
+              notifyUser({
+                userId: t._id.toString(),
+                type: "NEW_QUESTION_POSTED",
+                message,
+                href: "/feed",
+                image: previewImage,
+                extraData: {
+                  questionId: question._id.toString(),
+                  ...(subject ? { subject } : {}),
+                  ...(previewImage ? { imageUrl: previewImage } : {}),
+                },
+              }),
+            ),
+          );
+        }
+        console.log(
+          `[POST /api/questions] notified ${teachers.length} teacher(s) of question=${question._id.toString()}`,
+        );
+      } catch (err) {
+        console.error("[POST /api/questions] teacher fan-out failed", err);
+      }
+
+      // Case-insensitive collation is required because interests are free-text
+      // (user-typed) while subject is a canonical dropdown value — an exact
+      // match would almost never fire.
+      if (!subject) return;
+
+      try {
+        const interestedUsers = await User.find({
+          interests: subject,
+          _id: { $ne: user.id },
+          isSuspended: { $ne: true },
+          isDeleted: { $ne: true },
+        })
+          .collation({ locale: "en", strength: 2 })
+          .select("_id")
+          .limit(100)
+          .lean<{ _id: { toString(): string } }[]>();
+
+        const message = `New ${subject} question: ${questionSummary(feedQuestion, 80)}`;
+        await Promise.allSettled(
+          interestedUsers
+            .filter((u) => !notifiedIds.has(u._id.toString()))
+            .map((u) =>
               notifyUser({
                 userId: u._id.toString(),
                 type: "NEW_QUESTION_INTEREST",
@@ -224,12 +289,11 @@ export async function POST(request: Request) {
                 href: "/feed",
               }),
             ),
-          );
-        } catch (err) {
-          console.error("[POST /api/questions] interest fan-out failed", err);
-        }
-      });
-    }
+        );
+      } catch (err) {
+        console.error("[POST /api/questions] interest fan-out failed", err);
+      }
+    });
 
     return NextResponse.json(feedQuestion, { status: 201 });
   } catch (error) {

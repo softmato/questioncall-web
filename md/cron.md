@@ -69,6 +69,38 @@ POST https://your-domain.com/api/cron/monthly-rewards
 x-cron-secret: YOUR_CRON_SECRET
 ```
 
+### 3. Flush Reaction Notifications
+
+`POST /api/cron/flush-reaction-notifications`
+
+What it does:
+
+- Sends the deferred "someone reacted to your question" push for every reactor
+  who has stopped reacting for the quiet window (2 minutes — see
+  `REACTION_NOTIFY_QUIET_MS` in `lib/reaction-notifications.ts`).
+- Drops pending entries whose reaction has since been withdrawn, so a reaction
+  the user taps and immediately untaps never notifies anyone.
+
+Why it exists: reactions are a toggle, so sending on the tap meant one push per
+tap. Pushes are queued instead and collapsed into one per reactor per question.
+
+Recommended schedule:
+
+- Every minute (nothing breaks at a longer interval — notifications just arrive
+  later)
+
+Example request:
+
+```text
+POST https://your-domain.com/api/cron/flush-reaction-notifications
+x-cron-secret: YOUR_CRON_SECRET
+```
+
+Note: `POST /api/questions/[id]/react` also flushes due notifications after
+responding, so on a site with any reaction traffic this cron is a safety net
+rather than the primary path — it covers reactions that land just before things
+go quiet.
+
 ## cron-job.org Settings
 
 Use these settings for each job:

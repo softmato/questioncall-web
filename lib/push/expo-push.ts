@@ -14,6 +14,14 @@ export type ExpoMessage = {
   /** Notification category ID — maps to client-registered action sets (e.g. Accept/Decline for calls) */
   categoryId?: string;
   /**
+   * Absolute URL of an image to attach to the notification (Expo `richContent`).
+   *
+   * On Android this renders as a BigPictureStyle expandable notification, which
+   * is what makes a photo-only question readable from the tray without opening
+   * the app. Ignored when `dataOnly` is set — a data message renders nothing.
+   */
+  image?: string | null;
+  /**
    * When true, the push is delivered as a data-only FCM message (no top-level
    * `title`/`body`), so the FCM SDK renders nothing and the message is handed
    * to the app's own `FirebaseMessagingService`.
@@ -59,6 +67,11 @@ async function sendChunk(
     // whether to play a ringtone (CallKeep does for incoming calls).
     sound: message.dataOnly ? null : message.sound !== undefined ? message.sound : "default",
     ...(message.categoryId ? { categoryId: message.categoryId } : {}),
+    // Only meaningful on a rendered notification; a data-only message has no
+    // tray UI for the image to attach to.
+    ...(message.image && !message.dataOnly
+      ? { richContent: { image: message.image } }
+      : {}),
   }));
 
   const res = await fetch(EXPO_PUSH_URL, {

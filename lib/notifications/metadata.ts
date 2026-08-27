@@ -68,6 +68,12 @@ export function getNotificationTheme(
     case "COMMENT_RECEIVED":
       return { title: "New Comment", channelId: "questions", priority: "high", sound: "default" };
 
+    // Fan-out to every teacher when a student posts. High priority on purpose:
+    // questions are claimed first-come-first-served, so a push Doze defers by
+    // an hour is worth nothing to the teacher who receives it.
+    case "NEW_QUESTION_POSTED":
+      return { title: "New Question Posted", channelId: "questions", priority: "high", sound: "default" };
+
     case "NEW_QUESTION_INTEREST":
       return { title: "Question For You", channelId: "questions", priority: "normal", sound: "default" };
 
@@ -78,8 +84,12 @@ export function getNotificationTheme(
       return { title: "New Follower", channelId: "default", priority: "normal", sound: "default" };
 
     // ── Ratings ──────────────────────────────────────────────────────────────
+    // High priority: this fires when the asker closes the channel, and it is
+    // the teacher's only signal that the job settled and points moved. At
+    // "normal" Doze could hold it until the next time the device woke, long
+    // after the wallet balance had already changed underneath them.
     case "RATING_RECEIVED":
-      return { title: "New Rating Received", channelId: "wallet", priority: "normal", sound: "default" };
+      return { title: "New Rating Received", channelId: "wallet", priority: "high", sound: "default" };
 
     // ── Wallet & payments (use href to distinguish sub-events) ───────────────
     case "PAYMENT": {
@@ -127,6 +137,9 @@ export function getDefaultNotificationHref(type?: string | null) {
   switch (type) {
     case "PAYMENT":
       return "/subscription";
+    case "NEW_QUESTION_POSTED":
+    case "NEW_QUESTION_INTEREST":
+      return "/feed";
     case "RATING_RECEIVED":
       return "/wallet";
     case "DAILY_TARGET_BONUS":

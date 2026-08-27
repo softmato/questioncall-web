@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import { getChannelRoomName, prepareChannelRoom } from "@/lib/livekit-room";
 import { emitQuestionUpdated, emitChannelMessage, emitNotification, emitNewChannel } from "@/lib/pusher/pusherServer";
+import { getQuestionCounts } from "@/lib/question-counts";
 import { questionSummary } from "@/lib/question-summary";
 import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Channel from "@/models/Channel";
@@ -128,6 +129,7 @@ export async function POST(_request: Request, context: RouteParams) {
     };
 
     const reactions = Array.isArray(question.reactions) ? question.reactions : [];
+    const counts = await getQuestionCounts(question);
 
     const feedQuestion: FeedQuestion = {
       id: question._id.toString(),
@@ -138,6 +140,9 @@ export async function POST(_request: Request, context: RouteParams) {
       askerImage: asker.userImage || undefined,
       title: question.title,
       body: question.body,
+      // See the note in the react route: a question broadcast that omits
+      // `images` blanks the photo on every client that merges it.
+      images: Array.isArray(question.images) ? question.images : [],
       answerFormat: question.answerFormat,
       answerVisibility: question.answerVisibility,
       status: question.status,
@@ -152,9 +157,9 @@ export async function POST(_request: Request, context: RouteParams) {
       acceptedById: authenticatedUser.id,
       acceptedAt: question.acceptedAt!.toISOString(),
       acceptedByName: acceptorName,
-      answerCount: 0,
+      answerCount: counts.answerCount,
       reactionCount: reactions.length,
-      commentCount: 0,
+      commentCount: counts.commentCount,
       createdAt: question.createdAt.toISOString(),
       updatedAt: question.updatedAt.toISOString(),
     };

@@ -10,6 +10,14 @@ type NotifyUserInput = {
   type?: string;
   message: string;
   href: string;
+  /** Override the theme's default push title. */
+  title?: string;
+  /** Small icon (e.g. sender avatar) shown on the push. */
+  icon?: string | null;
+  /** Large preview image attached to the push (e.g. a question's photo). */
+  image?: string | null;
+  /** Extra string key/values merged into the push data payload. */
+  extraData?: Record<string, string>;
 };
 
 /**
@@ -26,6 +34,10 @@ export async function notifyUser({
   type = "PAYMENT",
   message,
   href,
+  title,
+  icon,
+  image,
+  extraData,
 }: NotifyUserInput) {
   const notification = await Notification.create({
     userId,
@@ -46,5 +58,9 @@ export async function notifyUser({
     type,
     message,
     href,
+    title,
+    icon,
+    image,
+    extraData,
   }).catch((err) => console.error("[notifyUser] push failed", err));
 }

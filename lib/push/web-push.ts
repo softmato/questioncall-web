@@ -21,6 +21,15 @@ type NotificationPayload = {
   title?: string;
   /** URL to a user avatar / icon shown as the notification large icon */
   icon?: string | null;
+  /**
+   * Absolute URL of an image attached to the notification body — Android
+   * BigPictureStyle via Expo `richContent`, `image` on the Web Notification.
+   *
+   * Used by the new-question fan-out so a teacher can see the photo of the
+   * problem straight from the tray. Never set for calls (data-only pushes
+   * render nothing).
+   */
+  image?: string | null;
   /** Extra string key/value pairs merged into the Expo push data object */
   extraData?: Record<string, string>;
   /**
@@ -51,6 +60,7 @@ type WebPushPayload = {
   tag: string;
   icon: string;
   badge: string;
+  image?: string;
 };
 
 let vapidConfigured = false;
@@ -93,6 +103,7 @@ function buildWebPushPayload(notification: NotificationPayload): WebPushPayload 
     tag: `notification-${notification.type.toLowerCase()}`,
     icon: notification.icon || "/icon.png",
     badge: "/icon.png",
+    ...(notification.image ? { image: notification.image } : {}),
   };
 }
 
@@ -229,6 +240,7 @@ export async function sendPushNotificationToUser(
       // A call is data-only *unless* it is the fallback tier, whose entire
       // purpose is to be rendered by the system without waking our process.
       dataOnly: isIncomingCall && !systemRendered,
+      image: notification.image ?? null,
     }).catch((err) => {
       console.error("[web-push] Expo push failed for user:", userId, "type:", notifyType, err);
       logError("Expo push failed in web-push dispatcher", {

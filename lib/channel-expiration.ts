@@ -10,6 +10,8 @@ import Channel from "@/models/Channel";
 import Notification from "@/models/Notification";
 import { getPlatformConfig } from "@/models/PlatformConfig";
 import User from "@/models/User";
+import { notifyUser } from "@/lib/notifications/notify-user";
+import { getQuestionCounts } from "@/lib/question-counts";
 import { recordWalletHistoryEvent } from "@/lib/wallet-history";
 import { incrementDailyTargetCount } from "@/lib/daily-targets";
 import type { FeedQuestion } from "@/types/question";
@@ -37,6 +39,7 @@ type PopulatedQuestion = {
   askerId?: { toString(): string } | string | null;
   title: string;
   body: string;
+  images?: string[] | null;
   answerFormat: FeedQuestion["answerFormat"];
   answerVisibility: FeedQuestion["answerVisibility"];
   subject?: string;
@@ -262,13 +265,29 @@ export async function processExpiredChannels(
         }
         await question.save();
 
+        const solvedCounts = await getQuestionCounts(question);
+        const solvedReactions = Array.isArray(question.reactions)
+          ? question.reactions
+          : [];
+        const solvedAsker = getUserSnapshot(channel.askerId as RefLike);
+
+        // Every field here is merged over the card each client already holds,
+        // so a placeholder is not a harmless stand-in — it overwrites. This
+        // payload used to send askerName: "", reactions: [] and zeroed counts,
+        // which stripped the asker's name and their reaction state from the
+        // feed the moment a channel auto-closed.
         await emitQuestionUpdated({
           id: question._id.toString(),
           channelId,
-          askerId: question.askerId?.toString() || "",
-          askerName: "",
+          askerId: getRefId(channel.askerId as RefLike) || question.askerId?.toString() || "",
+          askerName: solvedAsker.name || "Anonymous",
+          askerUsername: solvedAsker.username || undefined,
+          askerImage: solvedAsker.userImage || undefined,
           title: question.title,
           body: question.body,
+          // See the note in the react route: omitting `images` blanks the
+          // photo on every client that merges this broadcast.
+          images: Array.isArray(question.images) ? question.images : [],
           answerFormat: question.answerFormat,
           answerVisibility: question.answerVisibility,
           status: "SOLVED",
@@ -276,13 +295,24 @@ export async function processExpiredChannels(
           stream: question.stream || undefined,
           level: question.level || undefined,
           resetCount: question.resetCount,
-          reactions: [],
+          reactions: solvedReactions.map(
+            (reaction: {
+              userId?: { toString(): string } | string | null;
+              type: string;
+            }) => ({
+              userId: reaction.userId?.toString() || "",
+              type: reaction.type as "like" | "insightful" | "same_doubt",
+            }),
+          ),
           acceptedById: null,
           acceptedAt: null,
           acceptedByName: null,
-          answerCount: 1,
-          reactionCount: 0,
-          commentCount: 0,
+          // Not a hardcoded 1: the answer is only linked to the question when
+          // it is public, so a private answer must still report 0 here or the
+          // feed shows an answer badge on a card with nothing behind it.
+          answerCount: solvedCounts.answerCount,
+          reactionCount: solvedReactions.length,
+          commentCount: solvedCounts.commentCount,
           createdAt: new Date(question.createdAt).toISOString(),
           updatedAt: new Date().toISOString(),
         }).catch(() => {});
@@ -333,19 +363,24 @@ export async function processExpiredChannels(
           });
         }
 
-        const teacherNotif = await Notification.create({
+        // Same channel-end rating notification as the manual close path, so it
+        // has to reach the device the same way — notifyUser, not a bare
+        // Notification.create that only lands in the in-app list.
+        await notifyUser({
           userId: teacherId,
           type: "RATING_RECEIVED",
+          title: `${"⭐".repeat(AUTO_CLOSE_RATING)} Auto-Rated`,
           message:
             pointsEarned > 0
-              ? `Auto-reviewed: You received ${AUTO_CLOSE_RATING}/5 stars (asker didn't rate in time). Points credited automatically.`
+              ? `Auto-reviewed: You received ${AUTO_CLOSE_RATING}/5 stars (asker didn't rate in time). ${pointsEarned} point(s) credited automatically.`
               : `Auto-reviewed: You received ${AUTO_CLOSE_RATING}/5 stars (asker didn't rate in time).`,
           href: `/workspace/${channelId}`,
-        }).catch(() => null);
-
-        if (teacherNotif) {
-          await emitNotification(teacherId, teacherNotif).catch(() => {});
-        }
+          extraData: {
+            channelId,
+            rating: String(AUTO_CLOSE_RATING),
+            autoRated: "true",
+          },
+        });
 
         // Increment daily target count for the auto-closed teacher
         await incrementDailyTargetCount(teacherId, config).catch((err) => {
@@ -443,6 +478,7 @@ export async function processExpiredChannels(
         const reactions = Array.isArray(question.reactions)
           ? question.reactions
           : [];
+        const counts = await getQuestionCounts(question);
 
         const feedQuestion: FeedQuestion = {
           id: question._id.toString(),
@@ -453,6 +489,9 @@ export async function processExpiredChannels(
           askerImage: askerSnapshot.userImage || undefined,
           title: question.title,
           body: question.body,
+          // See the note in the react route: omitting `images` blanks the
+          // photo on every client that merges this broadcast.
+          images: Array.isArray(question.images) ? question.images : [],
           answerFormat: question.answerFormat,
           answerVisibility: question.answerVisibility,
           status: "RESET",
@@ -472,9 +511,9 @@ export async function processExpiredChannels(
           acceptedById: null,
           acceptedAt: null,
           acceptedByName: null,
-          answerCount: 0,
+          answerCount: counts.answerCount,
           reactionCount: reactions.length,
-          commentCount: 0,
+          commentCount: counts.commentCount,
           createdAt: new Date(question.createdAt).toISOString(),
           updatedAt: new Date(question.updatedAt).toISOString(),
         };
