@@ -3,11 +3,13 @@ import { AccessToken } from "livekit-server-sdk";
 
 import { logCallLifecycle } from "@/lib/call-logging";
 import { CALL_RATE_LIMITS } from "@/lib/call-policies";
+import { createCallPushActionToken } from "@/lib/calls/push-action-token";
 import { processExpiredChannels } from "@/lib/channel-expiration";
 import { getChannelRoomName, prepareChannelRoom } from "@/lib/livekit-room";
 import { connectToDatabase } from "@/lib/mongodb";
 import { enforceRequestRateLimit } from "@/lib/request-rate-limit";
 import { sendPushNotificationToUser } from "@/lib/push/web-push";
+import { getSiteUrl } from "@/lib/site-url";
 import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Channel from "@/models/Channel";
 import CallSession from "@/models/CallSession";
@@ -275,6 +277,18 @@ export async function POST(request: Request) {
       timeExtensionCount,
     });
 
+    // Lets the callee decline from the Android call notification when there is
+    // no app process to hold a bearer token — see lib/calls/push-action-token.
+    // Null when the secret is missing: the call must still ring, and the client
+    // degrades to silencing itself and letting the session time out.
+    const declineToken = createCallPushActionToken("reject", callSessionId, otherUserId);
+    const declineExtras: Record<string, string> = declineToken
+      ? {
+          declineToken,
+          declineUrl: `${getSiteUrl()}/api/calls/${callSessionId}/push-reject`,
+        }
+      : {};
+
     void sendPushNotificationToUser(otherUserId, {
       type: "SYSTEM",
       title: user.name || "Incoming Call",
@@ -286,6 +300,7 @@ export async function POST(request: Request) {
         callerId: userId,
         callerName: user.name || "Someone",
         mode,
+        ...declineExtras,
       },
     }).catch((err) => {
       console.warn("[calls/create] push notification failed:", err);
@@ -356,6 +371,10 @@ export async function POST(request: Request) {
             callerId: userId,
             callerName: user.name || "Someone",
             mode,
+            // Same token as the primary — still inside its TTL at this point,
+            // and this tier is often the ONLY push that reaches the device, so
+            // the notification it produces must be just as answerable.
+            ...declineExtras,
           },
         });
 
