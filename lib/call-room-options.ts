@@ -40,5 +40,14 @@ export const CALL_ROOM_OPTIONS: RoomOptions = {
     // rather hold resolution and lose some smoothness — students hold written
     // work up to the camera, so legibility beats framerate.
     degradationPreference: "maintain-resolution",
+
+    // Screen share is a different signal from a camera feed and needs its own
+    // ceiling. Without this key it inherits videoEncoding above, which was
+    // tuned for a 1080p camera at 30fps; a shared phone screen is taller,
+    // sharper, and mostly static text, so it wants the bitrate headroom far
+    // more than it wants the framerate. maintain-resolution for the same reason
+    // it is set above, and more so: a downscaled screen share is unreadable,
+    // which is the entire point of sharing one.
+    screenShareEncoding: { maxBitrate: 4_000_000, maxFramerate: 15 },
   },
 };

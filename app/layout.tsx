@@ -108,7 +108,14 @@ const organizationStructuredData = {
   description: APP_DESCRIPTION,
   logo: absoluteUrl("/logo.png"),
   image: absoluteUrl("/logo.png"),
-  sameAs: [],
+  // Softmato's product page ties this brand to a site Google already trusts.
+  sameAs: ["https://softmato.com/products/questioncall"],
+  parentOrganization: {
+    "@type": "Organization",
+    name: "Softmato",
+    legalName: "Softmato Technology Private Limited",
+    url: "https://softmato.com",
+  },
 };
 
 const websiteStructuredData = {

@@ -3,9 +3,14 @@ import { AccessToken } from "livekit-server-sdk";
 
 import { logCallLifecycle } from "@/lib/call-logging";
 import { CALL_RATE_LIMITS } from "@/lib/call-policies";
+import { endAbandonedCallSession } from "@/lib/call-expiration";
 import { createCallPushActionToken } from "@/lib/calls/push-action-token";
 import { processExpiredChannels } from "@/lib/channel-expiration";
-import { getChannelRoomName, prepareChannelRoom } from "@/lib/livekit-room";
+import {
+  getChannelRoomName,
+  getParticipantsInCall,
+  prepareChannelRoom,
+} from "@/lib/livekit-room";
 import { connectToDatabase } from "@/lib/mongodb";
 import { enforceRequestRateLimit } from "@/lib/request-rate-limit";
 import { sendPushNotificationToUser } from "@/lib/push/web-push";
@@ -154,16 +159,61 @@ export async function POST(request: Request) {
       status: { $in: ["RINGING", "ACTIVE"] },
     })
       .sort({ createdAt: -1 })
-      .select("callerId mode status roomName teacherId studentId createdAt")
+      .select(
+        "callerId mode status roomName teacherId studentId createdAt",
+      )
       .lean();
 
     if (liveCall) {
       const liveCallerId = liveCall.callerId?.toString() ?? null;
       const liveCallId = liveCall._id.toString();
-      const isSameCaller = liveCallerId === userId;
+      let isSameCaller = liveCallerId === userId;
+
+      // An ACTIVE session used to count as live for ever, because the only
+      // thing that ends one is POST /calls/:id/end and nothing fires that when
+      // an app is force-stopped or swiped away. A single abandoned call then
+      // made this guard refuse every future call on the channel — permanently,
+      // with "This channel already has a call in progress." and no way back
+      // short of editing the database.
+      //
+      // Whoever is asking is, by definition, not in that call: they are dialling
+      // from an app that would have re-focused the live call instead. So the
+      // only question left is whether the OTHER participant is still in it, and
+      // the SFU knows. Still there → they are waiting, so hand this session back
+      // and let the dialler rejoin rather than refusing them. Gone → the call is
+      // over and nobody said so; end it and fall through to placing the new one.
+      // Unknown (LiveKit down) → behave exactly as before.
+      let isLive = true;
+      if (liveCall.status === "ACTIVE") {
+        const inCall = await getParticipantsInCall(liveCall.roomName, [
+          liveCall.teacherId?.toString() ?? teacherId,
+          liveCall.studentId?.toString() ?? studentId,
+        ]);
+        if (inCall !== null && !inCall.has(otherUserId)) {
+          const abandoned = await CallSession.findById(liveCallId);
+          if (abandoned) {
+            await endAbandonedCallSession(abandoned).catch((err) => {
+              console.error("[calls/create] Failed to reap abandoned call", err);
+            });
+          }
+          logCallLifecycle("create_reaped_abandoned", {
+            callSessionId: liveCallId,
+            channelId,
+            callerId: userId,
+            calleeId: otherUserId,
+          });
+          isLive = false;
+        } else if (inCall !== null) {
+          // Other side is still in the room. Rejoining beats "they are busy",
+          // and it is the same hand-back the original caller already got.
+          isSameCaller = true;
+        }
+      }
+
       const isFresh =
-        liveCall.status === "ACTIVE" ||
-        Date.now() - new Date(liveCall.createdAt).getTime() < RING_REUSE_WINDOW_MS;
+        isLive &&
+        (liveCall.status === "ACTIVE" ||
+          Date.now() - new Date(liveCall.createdAt).getTime() < RING_REUSE_WINDOW_MS);
 
       if (!isSameCaller && isFresh) {
         // The other participant is already calling us (or we are already in a
@@ -207,7 +257,10 @@ export async function POST(request: Request) {
             channelId,
             roomName: liveCall.roomName,
             mode: liveCall.mode,
-            callerId: userId,
+            // The real caller, not necessarily the requester: a rejoin can come
+            // from either side, and the client reads this to decide whether the
+            // call is incoming.
+            callerId: liveCallerId ?? userId,
             teacherId: liveCall.teacherId?.toString() ?? teacherId,
             studentId: liveCall.studentId?.toString() ?? studentId,
             calleeIsOnline: true,

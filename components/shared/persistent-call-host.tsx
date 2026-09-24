@@ -92,12 +92,26 @@ const REJOIN_RETRY_MS = 3_000;
 // Grace before treating "remote participant left" as a possible call end —
 // covers transient peer network blips without delaying real hangups much.
 const REMOTE_LEFT_GRACE_MS = 2_000;
+// How long to hold a call open for a peer the SFU has dropped. Past this they
+// are not coming back, and somebody has to tell the server the call is over: a
+// force-stopped app never will, and the session would sit ACTIVE for ever and
+// block every future call on the channel. Mirrors REMOTE_LEFT_END_MS in the
+// mobile call screen.
+const REMOTE_LEFT_END_MS = 12_000;
 
 /**
  * Watches remote-participant presence inside the LiveKit room. When the peer
  * leaves (explicit hangup, app killed, or their `call:ended` Pusher event was
  * dropped), verify the session status with the server after a short grace and
  * tear down if the call is over — instead of sitting in the room forever.
+ *
+ * Asking the server is not enough on its own. The only thing that moves a call
+ * out of ACTIVE is POST /calls/:id/end, and a peer whose app was force-stopped
+ * never got to send it — so the status check comes back ACTIVE and this used to
+ * give up and wait for a Pusher event that is never coming. That is how the
+ * surviving side ended up parked on a dead call while the session stayed ACTIVE
+ * and locked the channel out of new calls. If the peer is still gone after a
+ * reconnect window, end it from this side.
  */
 function RemotePresenceWatcher({
   callSessionId,
@@ -118,6 +132,8 @@ function RemotePresenceWatcher({
     }
     if (!hadRemoteRef.current) return;
 
+    let cancelled = false;
+
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
       void (async () => {
@@ -125,9 +141,23 @@ function RemotePresenceWatcher({
           const res = await fetch(`/api/calls/${callSessionId}`);
           const data = await res.json().catch(() => null);
           const status = data?.status as string | undefined;
+          if (cancelled) return;
           if (status && status !== "ACTIVE" && status !== "RINGING") {
             onRemoteLeft();
+            return;
           }
+          if (status !== "ACTIVE") return;
+
+          // Peer gone, server still thinks the call is running. Give them one
+          // window to reconnect — this effect re-runs and cancels us if they do.
+          await new Promise((resolve) => setTimeout(resolve, REMOTE_LEFT_END_MS));
+          if (cancelled) return;
+          await fetch(`/api/calls/${callSessionId}/end`, {
+            method: "POST",
+            keepalive: true,
+          }).catch(() => {});
+          if (cancelled) return;
+          onRemoteLeft();
         } catch {
           // Status check failed — leave teardown to the Pusher event.
         }
@@ -135,6 +165,7 @@ function RemotePresenceWatcher({
     }, REMOTE_LEFT_GRACE_MS);
 
     return () => {
+      cancelled = true;
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);
         timerRef.current = null;

@@ -1,7 +1,8 @@
-import { CALL_MISSED_EVENT } from "@/lib/pusher/events";
+import { CALL_ENDED_EVENT, CALL_MISSED_EVENT, getChannelPusherName } from "@/lib/pusher/events";
 import {
   emitCallStatusToUser,
   emitChannelMessage,
+  pusherServer,
 } from "@/lib/pusher/pusherServer";
 import {
   getCallParticipantIds,
@@ -241,4 +242,121 @@ export async function processExpiredRingingCalls({
     skippedCount,
     processedCount: staleCalls.length,
   };
+}
+
+
+/**
+ * End an ACTIVE call whose participants have stopped reporting in.
+ *
+ * POST /calls/:id/end is the graceful path, and it only runs while the app is
+ * alive to run it. Force-stopping the app, swiping it off the recents list, or
+ * losing the process to an OEM task killer all leave the session ACTIVE with
+ * nobody in it. That matters beyond tidiness: the idempotency guard in
+ * /calls/create refuses to start a new call while one is live, so a single
+ * abandoned session made the channel permanently un-callable.
+ *
+ * Deliberately mirrors the /end route's side effects — CALL_ENDED_EVENT so any
+ * still-listening client tears its room down, plus the usual chat history entry
+ * — so an abandoned call looks like an ordinary finished call to both users
+ * rather than silently disappearing.
+ */
+export async function endAbandonedCallSession(
+  callSession: CallSessionDocument,
+): Promise<{ callSessionId: string; skipped: boolean }> {
+  const callSessionId = callSession._id.toString();
+  const channelId = callSession.channelId.toString();
+
+  if (callSession.status !== "ACTIVE") {
+    return { callSessionId, skipped: true };
+  }
+
+  const startedAtMs = callSession.startedAt
+    ? new Date(callSession.startedAt).getTime()
+    : callSession.createdAt
+      ? new Date(callSession.createdAt).getTime()
+      : 0;
+
+  callSession.status = "ENDED";
+  callSession.endedAt = new Date();
+  await callSession.save();
+
+  // Deliberately null rather than a number. Nobody told us when this call
+  // actually stopped — that is the entire reason we are here — and measuring to
+  // the moment the sweep noticed would credit it with all the time it spent
+  // dead. getCallSummaryText renders a duration-less call as just "Video call".
+  void startedAtMs;
+  const durationSeconds = null;
+
+  const { participantIds, callerId } = getCallParticipantIds(callSession);
+  const resolvedCallerId = callerId || participantIds[0];
+  const callerUser = resolvedCallerId
+    ? await User.findById(resolvedCallerId)
+        .select("name")
+        .lean<{ name?: string | null } | null>()
+    : null;
+  const callerName = callerUser?.name?.trim() || "Unknown";
+
+  await pusherServer
+    .trigger(getChannelPusherName(channelId), CALL_ENDED_EVENT, {
+      callSessionId,
+      channelId,
+      endedBy: null,
+      reason: "abandoned",
+    })
+    .catch(console.error);
+
+  const contentText = getCallSummaryText({
+    mode: callSession.mode,
+    status: "ENDED",
+    durationSeconds,
+  });
+
+  const systemMsg = await Message.create({
+    channelId,
+    senderId: resolvedCallerId,
+    content: contentText,
+    isSystemMessage: true,
+    callMetadata: {
+      callSessionId,
+      mode: callSession.mode,
+      status: "ENDED",
+      durationSeconds,
+      callerName,
+      callerId: resolvedCallerId,
+    },
+    sentAt: new Date(),
+  });
+
+  const chatMessage: ChatMessage = {
+    id: systemMsg._id.toString(),
+    channelId,
+    senderId: resolvedCallerId,
+    senderName: callerName,
+    content: contentText,
+    mediaUrl: null,
+    mediaType: null,
+    isSystemMessage: true,
+    isOwn: false,
+    isSeen: false,
+    isDelivered: true,
+    sentAt: systemMsg.sentAt.toISOString(),
+    callInfo: {
+      callSessionId,
+      mode: callSession.mode,
+      status: "ENDED",
+      durationSeconds,
+      callerName,
+      callerId: resolvedCallerId,
+    },
+  };
+
+  await emitChannelMessage(channelId, chatMessage).catch(console.error);
+
+  logCallLifecycle("ended_abandoned", {
+    callSessionId,
+    channelId,
+    durationSeconds,
+  });
+
+  return { callSessionId, skipped: false };
 }

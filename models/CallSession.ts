@@ -69,7 +69,13 @@ callSessionSchema.index({ teacherId: 1, status: 1 });
 callSessionSchema.index({ studentId: 1, status: 1 });
 callSessionSchema.index({ callerId: 1, status: 1 });
 
-export type CallSessionRecord = InferSchemaType<typeof callSessionSchema>;
+// InferSchemaType does not pick up the fields `timestamps: true` adds, and the
+// expiration/reaper code needs both of them to decide how long a session has
+// been sitting there untouched.
+export type CallSessionRecord = InferSchemaType<typeof callSessionSchema> & {
+  createdAt: Date;
+  updatedAt: Date;
+};
 export type CallSessionDocument = HydratedDocument<CallSessionRecord>;
 
 const CallSession = models.CallSession || model("CallSession", callSessionSchema);

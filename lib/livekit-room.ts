@@ -17,6 +17,53 @@ function getRoomServiceClient(): RoomServiceClient | null {
   return new RoomServiceClient(httpUrl, apiKey, apiSecret);
 }
 
+/**
+ * Which of these users are actually in the call right now.
+ *
+ * The server has no other way to know. POST /calls/:id/end is the only thing
+ * that moves a call out of ACTIVE, and it only runs while an app is alive to
+ * run it — force-stop, swipe-away, or an OEM task killer all skip it and leave
+ * the session ACTIVE for ever, which makes /calls/create refuse every later
+ * call on that channel ("This channel already has a call in progress.").
+ *
+ * A client heartbeat looks like the obvious fix and is not: React Native pauses
+ * JS timers when the Android activity backgrounds, so locking the phone during
+ * a voice call would stop the heartbeat and kill a live call. The SFU already
+ * knows exactly who is connected, so ask it.
+ *
+ * Presence alone is not enough, though — clients pre-warm a connection to the
+ * channel room from the chat screen and while ringing, without publishing
+ * anything. Only a participant publishing a track is in a call.
+ *
+ * Returns null when the answer is unknown (LiveKit unconfigured, or the API
+ * failed); callers must treat that as "assume still live" rather than reaping.
+ * A room that no longer exists is a definite answer: nobody is in it.
+ */
+export async function getParticipantsInCall(
+  roomName: string,
+  identities: string[],
+): Promise<Set<string> | null> {
+  const client = getRoomServiceClient();
+  if (!client) return null;
+
+  let participants;
+  try {
+    participants = await client.listParticipants(roomName);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (/not_?found|does not exist/i.test(message)) return new Set();
+    console.warn("[livekit] listParticipants failed:", message);
+    return null;
+  }
+
+  const wanted = new Set(identities.filter(Boolean));
+  return new Set(
+    participants
+      .filter((p) => wanted.has(p.identity) && p.tracks.length > 0)
+      .map((p) => p.identity),
+  );
+}
+
 // Fire-and-forget: pre-allocate the LiveKit room on the SFU and persist the
 // roomName on the Channel doc. Safe to call multiple times — LiveKit returns
 // the existing room if it's already created. Never throws; callers should
