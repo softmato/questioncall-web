@@ -32,8 +32,10 @@ function run(command, args, cwd) {
 if (!existsSync(app)) {
   run("git", ["clone", "--depth", "1", "https://github.com/softmato/questioncall-app.git", `"${app}"`], web);
 }
+// --include=dev: Vercel builds with NODE_ENV=production, which would skip the
+// app's devDependencies — and its postinstall (patch-package) is one of them.
 if (!existsSync(resolve(app, "node_modules"))) {
-  run("npm", ["ci", "--no-audit", "--no-fund"], app);
+  run("npm", ["ci", "--include=dev", "--no-audit", "--no-fund"], app);
 }
 run(
   resolve(app, "node_modules/.bin/expo"),
