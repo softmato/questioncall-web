@@ -609,7 +609,11 @@ export function PersistentCallHost() {
     const persisted = readPersistedActiveCall();
     if (!persisted?.callSessionId) return;
 
-    void startCall(persisted.callSessionId, { silent: true });
+    // Silent starts keep the entry on failure (rejoin retries need it), so a
+    // restore that fails must drop it, or every page load retries a dead call.
+    void startCall(persisted.callSessionId, { silent: true }).then((joined) => {
+      if (!joined) clearPersistedActiveCall(persisted.callSessionId);
+    });
   }, [routeCallId, startCall]);
 
   useEffect(() => {
@@ -876,7 +880,7 @@ export function PersistentCallHost() {
 
   if (loadingCallRoute) {
     return (
-      <div className="fixed inset-0 z-[9999] flex h-[100dvh] w-[100dvw] flex-col items-center justify-center gap-4 bg-black text-white">
+      <div className="pointer-events-auto fixed inset-0 z-[9999] flex h-[100dvh] w-[100dvw] flex-col items-center justify-center gap-4 bg-black text-white">
         <Loader2Icon className="size-10 animate-spin text-white/70" />
         <p className="text-sm text-white/70">Connecting to the live room...</p>
       </div>
@@ -885,7 +889,7 @@ export function PersistentCallHost() {
 
   if (showRouteError) {
     return (
-      <div className="fixed inset-0 z-[9999] flex h-[100dvh] w-[100dvw] flex-col items-center justify-center gap-4 bg-background px-4 text-center">
+      <div className="pointer-events-auto fixed inset-0 z-[9999] flex h-[100dvh] w-[100dvw] flex-col items-center justify-center gap-4 bg-background px-4 text-center">
         <AlertTriangleIcon className="size-10 text-red-500" />
         <h2 className="text-xl font-bold">Call Error</h2>
         <p className="max-w-md text-muted-foreground">{error}</p>
@@ -905,14 +909,15 @@ export function PersistentCallHost() {
   return (
     <div
       className={cn(
-        "z-[9999] isolate overflow-hidden bg-black text-white shadow-2xl",
+        "pointer-events-auto z-[9999] isolate overflow-hidden bg-black text-white shadow-2xl",
         isFullscreen
           ? "fixed inset-0 flex h-[100dvh] w-[100dvw] flex-col"
           : "fixed bottom-4 right-4 h-56 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-white/15 md:bottom-6 md:right-6",
       )}
     >
       <LiveKitRoom
-        video={true}
+        // Voice calls never open the camera (it used to be on for every call).
+        video={activeCall.mode === "VIDEO"}
         audio={true}
         token={activeCall.token}
         serverUrl={activeCall.serverUrl}

@@ -94,10 +94,17 @@ export function IncomingCallOverlay({
     };
 
     let stream: MediaStream | null = null;
+    let released = false;
 
     navigator.mediaDevices
       .getUserMedia(constraints)
       .then((s) => {
+        // Resolved after accept/decline/dismiss: nobody will stop these
+        // tracks later, and a leaked camera stays lit through the call.
+        if (released) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
         stream = s;
         mediaStreamRef.current = s;
       })
@@ -107,6 +114,7 @@ export function IncomingCallOverlay({
       });
 
     return () => {
+      released = true;
       // Release pre-warmed tracks if the overlay is dismissed without accepting
       if (stream) {
         stream.getTracks().forEach((t) => t.stop());
@@ -287,8 +295,12 @@ export function IncomingCallOverlay({
   const isVideo = call.mode === "VIDEO";
 
   return (
+    // pointer-events-auto: a Radix modal hidden underneath (notice, gift,
+    // onboarding — they fetch on app open) sets `pointer-events: none` on
+    // <body>, which would leave Accept/Decline untappable. Same on every call
+    // surface.
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-label="Incoming call"
     >

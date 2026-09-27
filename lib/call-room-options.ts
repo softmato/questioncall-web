@@ -14,32 +14,39 @@
 
 import type { RoomOptions } from "livekit-client";
 
+// The installed PWA on a phone gets the mobile app's settings (720p, livekit's
+// default degradation) instead: budget Androids have no hardware VP8 encoder,
+// and software-encoding 1080p30 while decoding the peer's 1080p starves the
+// page's main thread — the call keeps playing but no tap on mute/camera/end
+// lands. Read once in the browser; the server render never joins a room.
+const IS_PHONE =
+  typeof navigator !== "undefined" &&
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 export const CALL_ROOM_OPTIONS: RoomOptions = {
   adaptiveStream: false,
   dynacast: false,
 
-  // Matches VideoPresets.h1080.resolution. Treated as `ideal` by
-  // getUserMedia, so cameras that can't do 1080p fall back to their closest
+  // Matches VideoPresets.h1080 (desktop) / h720 (phone). Treated as `ideal` by
+  // getUserMedia, so cameras that can't do it fall back to their closest
   // supported capture format.
   videoCaptureDefaults: {
-    resolution: {
-      width: 1920,
-      height: 1080,
-      frameRate: 30,
-      aspectRatio: 1920 / 1080,
-    },
+    resolution: IS_PHONE
+      ? { width: 1280, height: 720, frameRate: 30, aspectRatio: 1280 / 720 }
+      : { width: 1920, height: 1080, frameRate: 30, aspectRatio: 1920 / 1080 },
   },
 
   publishDefaults: {
     // 1:1 call with one subscriber that always wants the top layer. Extra
     // simulcast layers cost uplink + encoder CPU and buy us nothing.
     simulcast: false,
-    videoEncoding: { maxBitrate: 3_000_000, maxFramerate: 30 },
-    // Default for sub-1080p capture is 'balanced', which resolves CPU or
-    // bandwidth pressure by downscaling and is slow to climb back. We would
-    // rather hold resolution and lose some smoothness — students hold written
-    // work up to the camera, so legibility beats framerate.
-    degradationPreference: "maintain-resolution",
+    videoEncoding: { maxBitrate: IS_PHONE ? 1_700_000 : 3_000_000, maxFramerate: 30 },
+    // Desktop: the default for sub-1080p capture is 'balanced', which resolves
+    // CPU or bandwidth pressure by downscaling and is slow to climb back. We
+    // would rather hold resolution and lose some smoothness — students hold
+    // written work up to the camera, so legibility beats framerate. Phone:
+    // unset, so a CPU-bound device may step down rather than freeze.
+    degradationPreference: IS_PHONE ? undefined : "maintain-resolution",
 
     // Screen share is a different signal from a camera feed and needs its own
     // ceiling. Without this key it inherits videoEncoding above, which was

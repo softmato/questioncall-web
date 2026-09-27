@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { PWAInstallPrompt } from "@/components/providers/pwa-install-prompt";
@@ -8,7 +9,24 @@ import { SHOULD_ENABLE_PWA } from "@/lib/pwa";
 import { isCheckoutHostClient } from "@/lib/checkout-host";
 
 export function PWAProvider() {
+  const router = useRouter();
   const hasShownUpdateToastRef = useRef(false);
+
+  // A tapped notification focuses this window and asks it to navigate (sw.js
+  // focusOrOpenClient) instead of opening a second app window.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      const url = event.data?.type === "qc:navigate" ? event.data.url : null;
+      if (typeof url === "string" && url.startsWith("/") && !url.startsWith("//")) {
+        router.push(url);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
+  }, [router]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) {

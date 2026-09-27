@@ -146,7 +146,8 @@ async function staleWhileRevalidate(request) {
 
   const networkPromise = fetch(request)
     .then((response) => {
-      cache.put(request, response.clone());
+      // Never pin an error: a 404 chunk cached here is served before the retry.
+      if (response.ok) cache.put(request, response.clone());
       return response;
     })
     .catch(() => null);
@@ -279,14 +280,18 @@ async function focusOrOpenClient(targetUrl) {
     includeUncontrolled: true,
   });
 
-  for (const client of windowClients) {
-    if ("focus" in client) {
-      const currentUrl = new URL(client.url);
-      if (currentUrl.href === absoluteTargetUrl) {
-        await client.focus();
-        return;
-      }
+  // Reuse the window the user already has and route it in-app. On Android a
+  // second openWindow() stacks another instance of the installed app over the
+  // first; a soft navigation also keeps a live call in that window running.
+  const client =
+    windowClients.find((c) => c.url === absoluteTargetUrl) || windowClients[0];
+  if (client && "focus" in client) {
+    await client.focus().catch(() => null);
+    if (client.url !== absoluteTargetUrl) {
+      const { pathname, search, hash } = new URL(absoluteTargetUrl);
+      client.postMessage({ type: "qc:navigate", url: pathname + search + hash });
     }
+    return;
   }
 
   if (self.clients.openWindow) {

@@ -684,8 +684,20 @@ export function WorkspaceShell({
         setOutgoingMissedCallId(null);
       }
     };
+    // Ring rebuilt by the /call/:id notification target (app/(workspace)/call)
+    // — the Pusher event fired before this window existed.
+    const handleIncomingCall = (e: Event) => {
+      const detail = (e as CustomEvent<IncomingCallPayload>).detail;
+      if (detail?.callSessionId) {
+        setIncomingCalls((prev) => enqueueIncomingCall(prev, detail));
+      }
+    };
     window.addEventListener("qc:outgoing-call", handleOutgoingCall);
-    return () => window.removeEventListener("qc:outgoing-call", handleOutgoingCall);
+    window.addEventListener("qc:incoming-call", handleIncomingCall);
+    return () => {
+      window.removeEventListener("qc:outgoing-call", handleOutgoingCall);
+      window.removeEventListener("qc:incoming-call", handleIncomingCall);
+    };
   }, []);
 
   const [isScrolled, setIsScrolled] = useState(false);
