@@ -9,6 +9,7 @@ import { CheckoutShell } from "@/components/checkout/checkout-shell";
 import { UploadProgressBar } from "@/components/shared/upload-progress-bar";
 import { postMultipartWithProgress } from "@/lib/client-upload";
 import { consumeMobileReturn } from "@/components/payment/mobile-return-redirect";
+import { SoftmatoPay } from "@/components/payment/softmato-pay-button";
 
 type Plan = {
   slug: string;
@@ -87,8 +88,6 @@ export function PlanCheckoutClient({
       checkoutMode={checkoutMode}
       backHref="/subscription"
       backLabel="Configure your plan"
-      manualPayment={manualPayment}
-      instruction="Scan the QR code or transfer the total due amount to the eSewa number above, then submit your transaction details below."
       confirmation="We'll email you the moment your plan is activated."
       forcedTheme={forcedTheme}
     >
@@ -152,63 +151,69 @@ export function PlanCheckoutClient({
         </div>
       </div>
 
-      {/* Payment details (inlined — no modal) */}
-      <div className="qc-sec-label">Your payment details</div>
-      <div className="qc-card">
-        <form onSubmit={(e) => void handleSubmit(e)} className="qc-form">
-          <div className="qc-field">
-            <label className="qc-field-label" htmlFor="plan-transaction-id">
-              eSewa Transaction ID
-            </label>
-            <input
-              className="qc-input"
-              id="plan-transaction-id"
-              name="transactionId"
-              required
-              placeholder="e.g. 1AK39BXX"
-              disabled={isSubmitting}
-            />
+      <SoftmatoPay
+        kind="subscription"
+        planSlug={plan.slug}
+        couponCode={couponCode}
+        manualPayment={manualPayment}
+        manual={
+          <div className="qc-card">
+            <form onSubmit={(e) => void handleSubmit(e)} className="qc-form">
+              <div className="qc-field">
+                <label className="qc-field-label" htmlFor="plan-transaction-id">
+                  eSewa Transaction ID
+                </label>
+                <input
+                  className="qc-input"
+                  id="plan-transaction-id"
+                  name="transactionId"
+                  required
+                  placeholder="e.g. 1AK39BXX"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="qc-field">
+                <label className="qc-field-label" htmlFor="plan-transactor-name">
+                  Transactor full name
+                </label>
+                <input
+                  className="qc-input"
+                  id="plan-transactor-name"
+                  name="transactorName"
+                  required
+                  placeholder="Full name used in eSewa"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="qc-field">
+                <label className="qc-field-label" htmlFor="plan-screenshot">
+                  Payment screenshot
+                  <span className="qc-field-hint">(optional but recommended)</span>
+                </label>
+                <input
+                  className="qc-input"
+                  id="plan-screenshot"
+                  name="screenshot"
+                  type="file"
+                  accept="image/*"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {isSubmitting && uploadProgress !== null && (
+                <UploadProgressBar label="Uploading screenshot…" value={uploadProgress} />
+              )}
+
+              <button type="submit" className="qc-submit" disabled={isSubmitting}>
+                <CreditCard size={18} />
+                {isSubmitting ? "Submitting…" : "Submit payment details"}
+              </button>
+            </form>
           </div>
-
-          <div className="qc-field">
-            <label className="qc-field-label" htmlFor="plan-transactor-name">
-              Transactor full name
-            </label>
-            <input
-              className="qc-input"
-              id="plan-transactor-name"
-              name="transactorName"
-              required
-              placeholder="Full name used in eSewa"
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="qc-field">
-            <label className="qc-field-label" htmlFor="plan-screenshot">
-              Payment screenshot
-              <span className="qc-field-hint">(optional but recommended)</span>
-            </label>
-            <input
-              className="qc-input"
-              id="plan-screenshot"
-              name="screenshot"
-              type="file"
-              accept="image/*"
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {isSubmitting && uploadProgress !== null && (
-            <UploadProgressBar label="Uploading screenshot…" value={uploadProgress} />
-          )}
-
-          <button type="submit" className="qc-submit" disabled={isSubmitting}>
-            <CreditCard size={18} />
-            {isSubmitting ? "Submitting…" : "Submit payment details"}
-          </button>
-        </form>
-      </div>
+        }
+      />
     </CheckoutShell>
   );
 }

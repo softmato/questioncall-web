@@ -10,6 +10,7 @@ import { UploadProgressBar } from "@/components/shared/upload-progress-bar";
 import { CheckoutShell } from "@/components/checkout/checkout-shell";
 import { postMultipartWithProgress } from "@/lib/client-upload";
 import { consumeMobileReturn } from "@/components/payment/mobile-return-redirect";
+import { SoftmatoPay } from "@/components/payment/softmato-pay-button";
 import type { CourseDetailData } from "@/lib/course-page-data";
 
 type Props = {
@@ -217,7 +218,6 @@ export function CourseBuyClient({
       checkoutMode={checkoutMode}
       backHref={`/courses/${course.slug}`}
       backLabel="Back to course"
-      manualPayment={course.manualPayment}
       forcedTheme={forcedTheme}
     >
       {/* Order summary */}
@@ -306,70 +306,77 @@ export function CourseBuyClient({
         </div>
       ) : null}
 
-      {/* Payment details */}
-      <div className="qc-sec-label">Your payment details</div>
-      <div className="qc-card">
-        <form onSubmit={(e) => void handlePaymentSubmit(e)} className="qc-form">
-          <div className="qc-field">
-            <label className="qc-field-label" htmlFor="course-transaction-id">
-              eSewa Transaction ID
-            </label>
-            <input
-              className="qc-input"
-              id="course-transaction-id"
-              name="transactionId"
-              required
-              placeholder="e.g. 1AK39BXX"
-              disabled={isSubmitting}
-            />
+      <SoftmatoPay
+        kind="course"
+        id={course._id}
+        couponCode={appliedCoupon?.code}
+        disabled={course.pendingPurchase}
+        manualPayment={course.manualPayment}
+        manual={
+          <div className="qc-card">
+            <form onSubmit={(e) => void handlePaymentSubmit(e)} className="qc-form">
+              <div className="qc-field">
+                <label className="qc-field-label" htmlFor="course-transaction-id">
+                  eSewa Transaction ID
+                </label>
+                <input
+                  className="qc-input"
+                  id="course-transaction-id"
+                  name="transactionId"
+                  required
+                  placeholder="e.g. 1AK39BXX"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="qc-field">
+                <label className="qc-field-label" htmlFor="course-transactor-name">
+                  Transactor full name
+                </label>
+                <input
+                  className="qc-input"
+                  id="course-transactor-name"
+                  name="transactorName"
+                  required
+                  placeholder="Full name used in eSewa"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="qc-field">
+                <label className="qc-field-label" htmlFor="course-screenshot">
+                  Payment screenshot
+                  <span className="qc-field-hint">(optional but recommended)</span>
+                </label>
+                <input
+                  className="qc-input"
+                  id="course-screenshot"
+                  name="screenshot"
+                  type="file"
+                  accept="image/*"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {isSubmitting && uploadProgress !== null && (
+                <UploadProgressBar
+                  label="Uploading screenshot…"
+                  value={uploadProgress}
+                />
+              )}
+
+              <button
+                type="submit"
+                className="qc-submit"
+                disabled={isSubmitting || course.pendingPurchase}
+              >
+                <CreditCard size={18} />
+                {isSubmitting ? "Submitting…" : "Submit payment proof"}
+              </button>
+            </form>
           </div>
-
-          <div className="qc-field">
-            <label className="qc-field-label" htmlFor="course-transactor-name">
-              Transactor full name
-            </label>
-            <input
-              className="qc-input"
-              id="course-transactor-name"
-              name="transactorName"
-              required
-              placeholder="Full name used in eSewa"
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="qc-field">
-            <label className="qc-field-label" htmlFor="course-screenshot">
-              Payment screenshot
-              <span className="qc-field-hint">(optional but recommended)</span>
-            </label>
-            <input
-              className="qc-input"
-              id="course-screenshot"
-              name="screenshot"
-              type="file"
-              accept="image/*"
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {isSubmitting && uploadProgress !== null && (
-            <UploadProgressBar
-              label="Uploading screenshot…"
-              value={uploadProgress}
-            />
-          )}
-
-          <button
-            type="submit"
-            className="qc-submit"
-            disabled={isSubmitting || course.pendingPurchase}
-          >
-            <CreditCard size={18} />
-            {isSubmitting ? "Submitting…" : "Submit payment proof"}
-          </button>
-        </form>
-      </div>
+        }
+      />
     </CheckoutShell>
   );
 }

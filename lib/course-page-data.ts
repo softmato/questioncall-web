@@ -520,6 +520,7 @@ export async function getCourseDetailPageData(input: {
         userId: input.userId,
         type: "COURSE_PURCHASE",
         status: "PENDING",
+        gateway: { $ne: "SOFTMATO" },
         "metadata.courseId": course._id.toString(),
       })
         .select("_id metadata")

@@ -10,7 +10,7 @@
 
 > **RULE 3 — TASK TRACKING:** Before any task, create/update `task.md` with chunk info, files to touch, and exit condition.
 
-> **RULE 4 — PAYMENTS:** Subscription and course purchases use Khalti/eSewa. Course purchases use `type: "COURSE_PURCHASE"` and atomically credit teacher wallet minus `coursePurchaseCommissionPercent`. Commission is snapshot in Transaction metadata.
+> **RULE 4 — PAYMENTS:** Subscription, course and chapter purchases use Softmato hosted checkout (`@softmato/sdk`, `lib/payment/softmato.ts`); manual eSewa transfer appears only if Softmato is unreachable. Course purchases use `type: "COURSE_PURCHASE"` and atomically credit teacher wallet minus `coursePurchaseCommissionPercent`. Commission is snapshot in Transaction metadata.
 
 ---
 
@@ -36,7 +36,7 @@
 | Database | MongoDB + Mongoose |
 | Real-time | Pusher |
 | AI | Gemini, Groq, OpenRouter, Mistral, Cerebras (via `lib/llm.ts`) |
-| Payments | Khalti SDK + eSewa SDK |
+| Payments | Softmato SDK (`@softmato/sdk`) |
 | Storage | Cloudinary (files + videos) |
 | Email | Nodemailer / Resend |
 | WhatsApp | Twilio WhatsApp Business API |
@@ -55,7 +55,7 @@
 | 3 | Channel & Real-Time Messaging | ✅ Done |
 | 4 | Answer Submission & Channel Closing | ✅ Done |
 | 5 | Notifications | ✅ Done |
-| 6 | Payments — Khalti + eSewa | ✅ Done |
+| 6 | Payments — Softmato | ✅ Done |
 | 7 | Teacher Wallet & Monetization | ✅ Done |
 | 8 | Student Points & AI Validation | ✅ Done |
 | 9 | Leaderboard & Gamification | ✅ Done |
@@ -78,7 +78,7 @@
 5. Submit Answer (Teacher → Student passes)
 6. Earn Money (AI validates)
 7. Leaderboard
-8. Subscribe (Khalti/eSewa)
+8. Subscribe (Softmato checkout)
 9. Take Quizzes
 10. Browse Courses
 11. Enroll / Buy Course → Watch Videos
@@ -151,7 +151,7 @@ app/
 | AI | `lib/llm.ts` | All AI calls (quiz gen, validation) |
 | Auth | `lib/auth.ts` | NextAuth setup |
 | Database | `lib/db.ts` | Mongoose connection |
-| Payments | `lib/khalti.ts` + `lib/esewa.ts` | Payment integrations |
+| Payments | `lib/payment/softmato.ts` | Softmato checkout + settlement |
 | Cloudinary | `lib/cloudinary.ts` | File/video upload |
 | Email | `lib/email.ts` | Nodemailer/Resend |
 | WhatsApp | `lib/whatsapp.ts` | Twilio integration |
@@ -193,8 +193,7 @@ app/
 | `/api/transactions/*` | Wallet/Payments |
 | `/api/quizzes/*` | Quiz system |
 | `/api/courses/*` | Course system |
-| `/api/payments/khalti/*` | Khalti integration |
-| `/api/payments/esewa/*` | eSewa integration |
+| `/api/payments/softmato/*` | Softmato checkout + webhook |
 
 ---
 
@@ -240,8 +239,8 @@ app/
 | `/api/courses/[id]/videos/[vid]/progress` | PATCH | Update progress |
 | `/api/courses/[id]/live-sessions` | POST | Schedule live |
 | `/api/courses/coupons/validate` | POST | Validate coupon |
-| `/api/payments/khalti/course-verify` | POST | Verify + enroll |
-| `/api/payments/esewa/course-verify` | POST | Verify + enroll |
+| `/api/payments/softmato/checkout` | POST | Start hosted checkout |
+| `/api/payments/softmato/webhook` | POST | Verify + provision |
 
 ---
 

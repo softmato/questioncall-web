@@ -23,18 +23,6 @@ export const getMobileAppCredentials = () => {
       description: "LiveKit server URL for video calls",
     },
 
-    // Payment Gateways
-    payment: {
-      esewa: {
-        merchantId: process.env.ESEWA_MERCHANT_ID,
-        description: "eSewa merchant ID for Nepali payments",
-      },
-      khalti: {
-        publicKey: process.env.NEXT_PUBLIC_KHALTI_PUBLIC_KEY,
-        description: "Khalti public key for payment integration",
-      },
-    },
-
     // API Configuration
     api: {
       baseUrl:
@@ -65,9 +53,6 @@ export function validateMobileCredentials(): {
   if (!creds.pusher.appKey) missing.push("NEXT_PUBLIC_PUSHER_KEY");
   if (!creds.pusher.cluster) missing.push("NEXT_PUBLIC_PUSHER_CLUSTER");
   if (!creds.livekit.serverUrl) missing.push("NEXT_PUBLIC_LIVEKIT_URL");
-  if (!creds.payment.esewa.merchantId) missing.push("ESEWA_MERCHANT_ID");
-  if (!creds.payment.khalti.publicKey)
-    missing.push("NEXT_PUBLIC_KHALTI_PUBLIC_KEY");
   if (!creds.google.clientId) missing.push("GOOGLE_CLIENT_ID");
   if (!creds.google.androidClientId)
     missing.push("GOOGLE_ANDROID_CLIENT_ID");

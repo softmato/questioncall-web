@@ -211,6 +211,7 @@ export async function getChapterDetailData(input: {
           userId: input.userId,
           type: "CHAPTER_PURCHASE",
           status: "PENDING",
+          gateway: { $ne: "SOFTMATO" },
           "metadata.chapterId": chapter._id.toString(),
         }).lean()
       : Promise.resolve(null),

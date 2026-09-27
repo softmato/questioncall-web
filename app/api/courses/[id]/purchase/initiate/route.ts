@@ -196,6 +196,7 @@ export async function POST(
         userId: session.user.id,
         type: "COURSE_PURCHASE",
         status: "PENDING",
+        gateway: { $ne: "SOFTMATO" },
         "metadata.couponCode": couponCode,
         "metadata.courseId": course._id.toString(),
       })
@@ -222,6 +223,7 @@ export async function POST(
         const pendingCouponUsageCount = await Transaction.countDocuments({
           type: "COURSE_PURCHASE",
           status: "PENDING",
+          gateway: { $ne: "SOFTMATO" },
           "metadata.couponCode": couponCode,
         });
 

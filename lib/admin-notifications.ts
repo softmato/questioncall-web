@@ -119,6 +119,7 @@ export async function getAdminNotificationCounts(
     Transaction.find({
       type: "COURSE_PURCHASE",
       status: "PENDING",
+      gateway: { $ne: "SOFTMATO" },
     })
       .select("_id")
       .lean(),
@@ -181,6 +182,7 @@ export async function getAdminNotifications(
       : Transaction.find({
           type: { $in: ["SUBSCRIPTION_MANUAL", "COURSE_PURCHASE"] },
           status: "PENDING",
+          gateway: { $ne: "SOFTMATO" },
         })
           .populate({ path: "userId", select: "name email role", model: User })
           .sort({ createdAt: -1 })

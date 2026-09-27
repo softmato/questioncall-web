@@ -22,7 +22,7 @@ export type ChapterPurchaseMetadata = {
 
 type CompleteChapterPurchaseInput = {
   transactionDocumentId: string;
-  gateway: "MANUAL" | "ESEWA";
+  gateway: "MANUAL" | "SOFTMATO";
   metaPatch?: Record<string, unknown>;
 };
 

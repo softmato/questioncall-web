@@ -44,6 +44,15 @@ export async function POST(
       );
     }
 
+    // Online (Softmato) payments settle themselves from the verified webhook;
+    // a pending one is an unpaid checkout, not proof awaiting review.
+    if (transaction.gateway === "SOFTMATO") {
+      return NextResponse.json(
+        { error: "Online payments are confirmed automatically by Softmato" },
+        { status: 400 },
+      );
+    }
+
     let successPayload: Record<string, unknown> = { success: true };
     let notificationMessage = "Your payment was approved.";
 

@@ -63,7 +63,7 @@ Traditional learning and existing online platforms often leave students waiting 
 
 ### 💳 Payments, Wallet & Internal Economy
 - Built-in digital wallet for teachers to accumulate earnings.
-- Integration with Nepalese payment gateways (**eSewa** and **Khalti**).
+- Payments via Softmato hosted checkout (eSewa, Khalti and others behind one SDK).
 - Features money-based rewards, referral bonuses, manual payments, and secure withdrawals.
 
 ### 🏆 Gamification & PWA

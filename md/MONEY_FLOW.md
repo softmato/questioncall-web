@@ -102,9 +102,8 @@ Question Call currently has four value systems:
 
 ## 11. Current repository reality
 
-- Subscription payments are active through manual verification and eSewa.
-- Paid course payments are active through manual verification and eSewa.
-- A Khalti course verification endpoint exists in the repo, but it is still a placeholder and is not completing purchases yet.
+- Subscription, course and chapter payments go through Softmato hosted checkout, settled by webhook (`lib/payment/softmato.ts`).
+- Manual eSewa transfer + admin review is a fallback shown only when Softmato is unreachable.
 
 ## 12. Simple end-to-end summary
 

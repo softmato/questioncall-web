@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 import "./checkout-theme.css";
 
-type ManualPayment = {
+export type ManualPayment = {
   recipientName: string;
   esewaNumber: string;
   qrCodeUrl: string;
@@ -22,10 +22,7 @@ type CheckoutShellProps = {
   checkoutMode?: boolean;
   backHref?: string;
   backLabel?: string;
-  manualPayment: ManualPayment;
-  /** Blue info line under the QR. */
-  instruction?: string;
-  /** Sub-line in the footer "manual verification" note. */
+  /** Sub-line in the footer "instant access" note. */
   confirmation?: string;
   /** Force the checkout palette regardless of the browser/page theme. Passed
    *  from the app's `?theme=` so the checkout matches the app, not the device.
@@ -38,21 +35,19 @@ type CheckoutShellProps = {
 const DEFAULT_INSTRUCTION =
   "Scan the QR code or transfer the total due amount to the eSewa number above, then submit your transaction details below.";
 const DEFAULT_CONFIRMATION =
-  "We'll email you the moment your payment is verified and access is unlocked.";
+  "Access unlocks the moment your payment is confirmed, and your receipt is emailed to you.";
 
 /**
  * Shared, single-column checkout chrome for every paid surface (course, chapter,
- * subscription). The frame — brand, eSewa payment-method card, and footer trust
- * row — is static; only the QR/recipient data and the right-hand summary+form
- * (children) are injected per purchase type. Styling + tokens live in
+ * subscription). The frame — brand and footer trust row — is static; the
+ * summary + payment section (children) is injected per purchase type. The eSewa
+ * QR card is {@link ManualPaymentCard}, shown only in the manual fallback. Styling + tokens live in
  * checkout-theme.css and follow the app's light/dark theme.
  */
 export function CheckoutShell({
   checkoutMode = false,
   backHref,
   backLabel,
-  manualPayment,
-  instruction = DEFAULT_INSTRUCTION,
   confirmation = DEFAULT_CONFIRMATION,
   forcedTheme,
   children,
@@ -81,35 +76,6 @@ export function CheckoutShell({
           {APP_NAME}
         </div>
 
-        {/* Payment method (static frame, dynamic QR/recipient) */}
-        <div className="qc-sec-label">Payment method</div>
-        <div className="qc-card qc-pay">
-          <div className="qc-qr-wrap">
-            {manualPayment.qrCodeUrl ? (
-              <img
-                src={manualPayment.qrCodeUrl}
-                alt="eSewa payment QR"
-                className="qc-qr"
-              />
-            ) : (
-              <div className="qc-qr-fallback">QR unavailable</div>
-            )}
-          </div>
-          <div className="qc-payee">{manualPayment.recipientName}</div>
-          <div className="qc-num">
-            <span className="qc-num-label">eSewa</span>
-            <span className="qc-num-val">
-              {manualPayment.esewaNumber || "—"}
-            </span>
-          </div>
-          <div className="qc-note">
-            <span className="qc-note-ic">
-              <Info size={18} />
-            </span>
-            <span>{instruction}</span>
-          </div>
-        </div>
-
         {/* Dynamic: order summary + payment form */}
         {children}
 
@@ -120,7 +86,7 @@ export function CheckoutShell({
               <BellRing size={20} />
             </span>
             <div className="qc-notify-text">
-              <div className="qc-notify-title">Manual verification</div>
+              <div className="qc-notify-title">Instant access</div>
               <div className="qc-notify-sub">{confirmation}</div>
             </div>
           </div>
@@ -141,9 +107,46 @@ export function CheckoutShell({
               triggerClassName=""
               triggerLabel="Terms and Policies"
             />
-            . Payments are manually verified.
+            . Payments are processed securely by Softmato.
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** The eSewa QR + recipient, for the manual-transfer fallback only. */
+export function ManualPaymentCard({
+  manualPayment,
+  instruction = DEFAULT_INSTRUCTION,
+}: {
+  manualPayment: ManualPayment;
+  /** Blue info line under the QR. */
+  instruction?: string;
+}) {
+  return (
+    <div className="qc-card qc-pay">
+      <div className="qc-qr-wrap">
+        {manualPayment.qrCodeUrl ? (
+          <img
+            src={manualPayment.qrCodeUrl}
+            alt="eSewa payment QR"
+            className="qc-qr"
+          />
+        ) : (
+          <div className="qc-qr-fallback">QR unavailable</div>
+        )}
+      </div>
+      <div className="qc-payee">{manualPayment.recipientName}</div>
+      <div className="qc-num">
+        <span className="qc-num-label">eSewa</span>
+        <span className="qc-num-val">{manualPayment.esewaNumber || "—"}</span>
+      </div>
+      <div className="qc-note">
+        <span className="qc-note-ic">
+          <Info size={18} />
+        </span>
+        <span>{instruction}</span>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import { getSafeServerSession } from "@/lib/auth";
 import { CheckoutShell } from "@/components/checkout/checkout-shell";
 import { TransactionModal } from "@/components/payment/transaction-modal";
+import { SoftmatoPay } from "@/components/payment/softmato-pay-button";
 import {
   getHydratedPlans,
   getManualPaymentDetails,
@@ -83,8 +84,6 @@ export default async function PaymentPage({
       checkoutMode={isCheckout}
       backHref="/subscription"
       backLabel="Configure your plan"
-      manualPayment={manualPayment}
-      instruction="Scan the QR code or transfer the total due amount to the eSewa number above, then confirm your transaction below."
       confirmation="We'll email you the moment your plan is activated."
     >
       {/* Plan summary */}
@@ -155,21 +154,23 @@ export default async function PaymentPage({
         </div>
       </div>
 
-      {/* Confirm payment */}
-      <div className="qc-sec-label">Confirm your payment</div>
-      <div className="qc-card">
-        {/* eSewa auto-pay (gateway redirect) is intentionally hidden from the UI
-            until real merchant credentials are live. The flow is kept intact —
-            `EsewaPayButton` + `/api/payments/esewa/initiate` — so it can be
-            re-enabled by rendering the button here again. Manual transfer +
-            screenshot review (TransactionModal) is the only active path. */}
-        <TransactionModal
-          planSlug={plan.slug}
-          couponCode={couponCode}
-          triggerClassName="qc-submit"
-          triggerLabel="I have paid — submit details"
-        />
-      </div>
+      <SoftmatoPay
+        kind="subscription"
+        planSlug={plan.slug}
+        couponCode={couponCode}
+        manualPayment={manualPayment}
+        instruction="Scan the QR code or transfer the total due amount to the eSewa number above, then confirm your transaction below."
+        manual={
+          <div className="qc-card">
+            <TransactionModal
+              planSlug={plan.slug}
+              couponCode={couponCode}
+              triggerClassName="qc-submit"
+              triggerLabel="I have paid — submit details"
+            />
+          </div>
+        }
+      />
     </CheckoutShell>
   );
 }

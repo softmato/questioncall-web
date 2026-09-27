@@ -52,7 +52,7 @@ Features:
 - Randomized question pools
 
 ### 💳 Payments & Wallets
-- Khalti & eSewa integration
+- Softmato payments (hosted checkout via `@softmato/sdk`)
 - Subscription purchases
 - Course purchases
 - Teacher commission payouts
@@ -103,7 +103,7 @@ Database       → MongoDB (Mongoose)
 Auth           → NextAuth.js
 Real-time      → Pusher
 AI             → Gemini, Groq, Mistral, Cerebras
-Payments       → Khalti SDK, eSewa SDK
+Payments       → Softmato SDK
 Videos         → Cloudinary + Zoom API
 Notifications  → Nodemailer, Twilio WhatsApp
 ```

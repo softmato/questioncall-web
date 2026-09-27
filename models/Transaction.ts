@@ -21,7 +21,7 @@ export interface ITransaction extends Document {
   screenshotUrl?: string;
 
   reference?: string;
-  gateway?: "ESEWA" | "INTERNAL" | "MANUAL" | "KHALTI";
+  gateway?: "INTERNAL" | "MANUAL" | "SOFTMATO";
   meta?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 
@@ -55,7 +55,8 @@ const TransactionSchema = new Schema<ITransaction>(
     reference: { type: String, index: true },
     gateway: { 
       type: String, 
-      enum: ["ESEWA", "INTERNAL", "MANUAL", "KHALTI"]
+      // 4 legacy FAILED sandbox rows still hold "ESEWA"; nothing re-saves FAILED rows.
+      enum: ["INTERNAL", "MANUAL", "SOFTMATO"]
     },
     meta: { type: Schema.Types.Mixed, default: {} },
     metadata: { type: Schema.Types.Mixed, default: undefined },

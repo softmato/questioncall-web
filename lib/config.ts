@@ -269,7 +269,7 @@ export const PLATFORM = {
   NAME: "Question Hub",
 
   /** Supported payment gateways */
-  GATEWAYS: ["MANUAL", "ESEWA"] as const,
+  GATEWAYS: ["SOFTMATO", "MANUAL"] as const,
 
   /** Default currency */
   CURRENCY: "NPR",
