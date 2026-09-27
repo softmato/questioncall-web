@@ -1,7 +1,11 @@
-const STATIC_CACHE_NAME = "question-call-static-v1";
+const STATIC_CACHE_NAME = "question-call-static-v2";
 const STATIC_CACHE_PREFIX = "question-call-static-";
+// The installable app (questioncall-app exported at /app) registers this same
+// worker at scope /app; the website registers it at /.
+const IN_APP = new URL(self.registration.scope).pathname === "/app";
+const SHELL = IN_APP ? "/app" : "/";
 const APP_SHELL_ASSETS = [
-  "/",
+  SHELL,
   "/icon.png",
   "/apple-icon.png",
   "/favicon.ico",
@@ -82,8 +86,30 @@ self.addEventListener("notificationclick", (event) => {
 
   const targetUrl = event.notification.data?.url || "/";
 
-  event.waitUntil(focusOrOpenClient(targetUrl));
+  event.waitUntil(IN_APP ? openInApp(targetUrl) : focusOrOpenClient(targetUrl));
 });
+
+// The app decides where a tapped notification lands, through the same route
+// mapping a phone tap takes: an open app is handed the link
+// (web/push-notifications.ts), a closed one is opened with it.
+async function openInApp(targetUrl) {
+  const windowClients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+  const app = windowClients.find((client) => {
+    const { pathname } = new URL(client.url);
+    return pathname === "/app" || pathname.startsWith("/app/");
+  });
+
+  if (app) {
+    app.postMessage({ type: "pwa-push-open", url: targetUrl });
+    await app.focus();
+    return;
+  }
+
+  await self.clients.openWindow(`/app?push=${encodeURIComponent(targetUrl)}`);
+}
 
 function shouldHandleAsStaticAsset(pathname) {
   return (
@@ -92,6 +118,8 @@ function shouldHandleAsStaticAsset(pathname) {
     pathname === "/favicon.ico" ||
     pathname === "/logo.png" ||
     pathname.startsWith("/_next/static/") ||
+    pathname.startsWith("/app/_expo/") ||
+    pathname.startsWith("/app/assets/") ||
     pathname.startsWith("/assets/") ||
     pathname.startsWith("/sounds/")
   );
@@ -103,7 +131,7 @@ async function networkFirst(request) {
   try {
     return await fetch(request);
   } catch (error) {
-    const fallbackResponse = await cache.match("/");
+    const fallbackResponse = await cache.match(SHELL);
     if (fallbackResponse) {
       return fallbackResponse;
     }
