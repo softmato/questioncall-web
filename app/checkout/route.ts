@@ -5,6 +5,7 @@ import { isValidObjectId } from "mongoose";
 import { JWT_SECRET } from "@/lib/env";
 import { connectToDatabase } from "@/lib/mongodb";
 import {
+  isAppReturnUrl,
   verifyCheckoutToken,
   consumeCheckoutToken,
   type CheckoutHandoffPayload,
@@ -137,9 +138,10 @@ export async function GET(req: NextRequest) {
   });
 
   // 6. Remember we came from the app so the success/cancel pages can deep-link
-  //    back. Not httpOnly on purpose: it only holds the public "questioncall://"
-  //    return scheme, and the client-side success/cancel pages must read it.
-  if (returnUrl) {
+  //    back. Not httpOnly on purpose: it only holds a public app return URL, and
+  //    the client-side success/cancel pages must read it. Allowlisted, because
+  //    those pages hand it to location.assign() (a javascript: URL would run).
+  if (returnUrl && isAppReturnUrl(returnUrl)) {
     res.cookies.set(RETURN_COOKIE, returnUrl, {
       httpOnly: false,
       secure: useSecureCookies,

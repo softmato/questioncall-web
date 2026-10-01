@@ -8,6 +8,7 @@ import CallSession from "@/models/CallSession";
 import Message from "@/models/Message";
 import { emitCallStatusToUser, emitChannelMessage } from "@/lib/pusher/pusherServer";
 import { CALL_CANCELLED_EVENT } from "@/lib/pusher/events";
+import { sendMissedCallWebPush } from "@/lib/push/web-push";
 import type { ChatMessage } from "@/types/channel";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -56,11 +57,19 @@ export async function POST(request: Request, context: RouteParams) {
 
     // Notify the other user that the call was cancelled
     const otherUserId = userId === teacherId ? studentId : teacherId;
-    await emitCallStatusToUser(otherUserId, CALL_CANCELLED_EVENT, {
-      callSessionId: id,
-      channelId: callSession.channelId.toString(),
-      cancelledBy: userId,
-    }).catch(console.error);
+    await Promise.all([
+      emitCallStatusToUser(otherUserId, CALL_CANCELLED_EVENT, {
+        callSessionId: id,
+        channelId: callSession.channelId.toString(),
+        cancelledBy: userId,
+      }).catch(console.error),
+      sendMissedCallWebPush(otherUserId, {
+        callSessionId: id,
+        channelId: callSession.channelId.toString(),
+        callerName: user.name || "Someone",
+        mode: callSession.mode,
+      }),
+    ]);
 
     // Insert a system message so both participants see the cancelled call in history
     const channelId = callSession.channelId.toString();

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getAuthenticatedUser } from "@/lib/unified-auth";
-import { mintCheckoutToken, type CheckoutIntent } from "@/lib/mobile-checkout";
+import {
+  APP_RETURN_URL,
+  isAppReturnUrl,
+  mintCheckoutToken,
+  type CheckoutIntent,
+} from "@/lib/mobile-checkout";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +16,6 @@ const INTENTS: CheckoutIntent[] = ["subscription", "course", "chapter"];
 // subdomain so Play review never sees a purchase surface inside the app.
 const CHECKOUT_BASE =
   process.env.MOBILE_CHECKOUT_BASE_URL || "https://buy.questioncall.com";
-
-// Deep link the browser is redirected to once checkout finishes (see app/lib/web-checkout.ts).
-const RETURN_URL = "questioncall://payment/return";
 
 /**
  * POST /api/mobile/checkout-session
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   }
 
-  let body: { intent?: string; ref?: string; coupon?: string };
+  let body: { intent?: string; ref?: string; coupon?: string; returnUrl?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -45,7 +47,12 @@ export async function POST(req: NextRequest) {
 
   const ht = mintCheckoutToken({ sub: user.id, intent, ref: body.ref });
 
-  const params = new URLSearchParams({ ht, intent, return: RETURN_URL });
+  // Where the browser goes once checkout finishes. Older app builds send none.
+  const returnUrl =
+    typeof body.returnUrl === "string" && isAppReturnUrl(body.returnUrl)
+      ? body.returnUrl
+      : APP_RETURN_URL;
+  const params = new URLSearchParams({ ht, intent, return: returnUrl });
   if (body.ref) params.set("ref", body.ref);
   // Optional subscription promo code — not part of the signed token; it is
   // re-validated and re-priced server-side on the checkout page itself.

@@ -84,10 +84,26 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const targetUrl = event.notification.data?.url || "/";
+  const { url: targetUrl = "/", call } = event.notification.data || {};
 
+  if (call && event.action === "decline") {
+    event.waitUntil(declineCall(call));
+    return;
+  }
+
+  // Accept and a tap on the body both open /call/<id>, which answers.
   event.waitUntil(IN_APP ? openInApp(targetUrl) : focusOrOpenClient(targetUrl));
 });
+
+// Declines without opening the app: there is no session here, so the push
+// carries a one-call token for push-reject (web/lib/calls/push-action-token.ts).
+async function declineCall(call) {
+  await fetch(`/api/calls/${call.id}/push-reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: call.declineToken }),
+  }).catch(() => null);
+}
 
 // The app decides where a tapped notification lands, through the same route
 // mapping a phone tap takes: an open app is handed the link
@@ -202,18 +218,15 @@ function isAppleWebPushEnvironment() {
 
 async function handlePush(event) {
   const payload = getPushPayload(event);
-  const body = payload.body || "You have a new update.";
   const targetUrl = payload.url || "/";
+  // An incoming call (web/lib/push/web-push.ts). The ring-fallback tier and the
+  // missed-call follow-up share its tag, so each replaces the one before.
+  const call = payload.call;
+  const body = call
+    ? `Incoming ${call.video ? "video" : "voice"} call — tap to answer`
+    : payload.body || "You have a new update.";
 
-  // Detect incoming call pushes by their body text and give them a clear title.
-  const isCallNotification =
-    typeof body === "string" && body.toLowerCase().includes("calling you");
-
-  const title = isCallNotification
-    ? "📞 Incoming Call"
-    : (payload.title || "Question Call");
-
-  await self.registration.showNotification(title, {
+  await self.registration.showNotification(payload.title || "Question Call", {
     body,
     icon: payload.icon || "/icon.png",
     badge: payload.badge || "/icon.png",
@@ -222,10 +235,18 @@ async function handlePush(event) {
     image: payload.image || undefined,
     tag: payload.tag,
     renotify: Boolean(payload.tag),
-    requireInteraction: isCallNotification ? true : Boolean(payload.requireInteraction),
-    vibrate: isCallNotification ? [300, 100, 300, 100, 300] : undefined,
+    requireInteraction: call ? true : Boolean(payload.requireInteraction),
+    vibrate: call ? [300, 100, 300, 100, 300] : undefined,
+    // Decline needs the token; without one the server would refuse it.
+    actions: call
+      ? [
+          ...(call.declineToken ? [{ action: "decline", title: "Decline" }] : []),
+          { action: "accept", title: "Accept" },
+        ]
+      : undefined,
     data: {
       url: targetUrl,
+      call,
     },
   });
 }

@@ -11,6 +11,7 @@ import {
   normalizeIdLike,
 } from "@/lib/call-utils";
 import { logCallLifecycle } from "@/lib/call-logging";
+import { sendMissedCallWebPush } from "@/lib/push/web-push";
 import CallSession, {
   type CallSessionDocument,
   type CallStatus,
@@ -125,11 +126,20 @@ export async function markCallSessionAsMissed({
     reason,
   };
 
-  await Promise.allSettled(
-    notifiedUserIds.map((targetUserId) =>
+  const { calleeId } = getCallParticipantIds(callSession);
+  await Promise.allSettled([
+    ...notifiedUserIds.map((targetUserId) =>
       emitCallStatusToUser(targetUserId, CALL_MISSED_EVENT, payload),
     ),
-  );
+    // Always the callee, whoever timed out: theirs is the ringing notification.
+    calleeId &&
+      sendMissedCallWebPush(calleeId, {
+        callSessionId,
+        channelId,
+        callerName: callerSnapshot.callerName,
+        mode: callSession.mode,
+      }),
+  ]);
 
   const contentText = getCallSummaryText({
     mode: callSession.mode,

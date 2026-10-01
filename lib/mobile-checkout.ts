@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 import { JWT_SECRET as SECRET } from "@/lib/env";
 import { connectToDatabase } from "@/lib/mongodb";
+import { getSiteUrl } from "@/lib/site-url";
 import UsedCheckoutToken from "@/models/UsedCheckoutToken";
 
 // The mobile app's access tokens are signed with NEXTAUTH_SECRET (see
@@ -10,6 +11,19 @@ import UsedCheckoutToken from "@/models/UsedCheckoutToken";
 // domain — do NOT introduce a second payment-specific secret.
 
 export const HANDOFF_TTL_SECONDS = 5 * 60;
+
+/** The phone app's deep link, which its Custom Tab intercepts. */
+export const APP_RETURN_URL = "questioncall://payment/return";
+
+/**
+ * Where a finished checkout may send the browser (app/lib/web-checkout.ts): the
+ * phone app's deep link, or the PWA's own page, since its popup can only hand
+ * back a URL on its own origin. Anything else is refused: the success pages
+ * pass this straight to location.assign().
+ */
+export function isAppReturnUrl(url: string) {
+  return url === APP_RETURN_URL || url === `${getSiteUrl()}/app/payment/return`;
+}
 
 export type CheckoutIntent = "subscription" | "course" | "chapter";
 

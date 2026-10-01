@@ -60,6 +60,12 @@ type NotificationPayload = {
    * a payload the system can render unaided, as the last line of defence.
    */
   forceSystemRendered?: boolean;
+  /**
+   * Web-only follow-up to an incoming call that stopped ringing unanswered: it
+   * shares the call's tag, so it replaces the ringing notification. See
+   * sendMissedCallWebPush.
+   */
+  endedCallId?: string;
 };
 
 type WebPushPayload = {
@@ -70,6 +76,8 @@ type WebPushPayload = {
   icon: string;
   badge: string;
   image?: string;
+  /** Present only on an incoming call; public/sw.js draws it as one. */
+  call?: { id: string; video: boolean; declineToken?: string };
 };
 
 let vapidConfigured = false;
@@ -105,15 +113,48 @@ export function getWebPushPublicKey() {
 function buildWebPushPayload(notification: NotificationPayload): WebPushPayload {
   const theme = getNotificationTheme(notification.type, notification.href);
   const url = resolveNotificationHref(notification);
+  const ringingCallId = notification.extraData?.callSessionId;
+  // One tag per call: the ring-fallback tier and the missed-call follow-up
+  // replace the ring instead of stacking beside it.
+  const callId = ringingCallId ?? notification.endedCallId;
   return {
     title: notification.title || theme.title,
     body: notification.message,
     url,
-    tag: `notification-${notification.type.toLowerCase()}`,
+    tag: callId ? `call-${callId}` : `notification-${notification.type.toLowerCase()}`,
     icon: notification.icon || "/icon.png",
     badge: "/icon.png",
     ...(notification.image ? { image: notification.image } : {}),
+    ...(ringingCallId
+      ? {
+          call: {
+            id: ringingCallId,
+            video: notification.extraData?.mode === "VIDEO",
+            declineToken: notification.extraData?.declineToken,
+          },
+        }
+      : {}),
   };
+}
+
+/**
+ * Replace a call's ringing Web Push notification with "Missed call" once the
+ * call stops ringing unanswered (caller hung up, or nobody picked up). A web
+ * notification stays until something replaces it; Android's native ring
+ * retires itself, so this skips Android. Replaced rather than silently closed:
+ * Safari revokes subscriptions whose pushes show nothing.
+ */
+export function sendMissedCallWebPush(
+  userId: string,
+  call: { callSessionId: string; channelId: string; callerName: string; mode: string },
+) {
+  return sendPushNotificationToUser(userId, {
+    type: "SYSTEM",
+    title: call.callerName,
+    message: call.mode === "VIDEO" ? "Missed video call" : "Missed voice call",
+    href: `/workspace/${call.channelId}`,
+    endedCallId: call.callSessionId,
+  }).catch((err) => console.warn("[web-push] missed-call push failed:", err));
 }
 
 function isGoneSubscriptionError(error: unknown) {
@@ -153,7 +194,9 @@ export async function sendPushNotificationToUser(
   const userPrefs = await User.findById(userId)
     .select("notificationPrefs")
     .lean<{ notificationPrefs?: Partial<UserNotificationPrefs> | null } | null>();
-  const allowed = isNotificationEnabledForUser(
+  // A missed-call follow-up replaces a call notification that skipped this
+  // gate, so it skips it too or a muted user is left with a stale ring.
+  const allowed = Boolean(notification.endedCallId) || isNotificationEnabledForUser(
     userPrefs?.notificationPrefs,
     notification.type,
     notification.href,
@@ -195,7 +238,7 @@ export async function sendPushNotificationToUser(
   let webErrorCount = 0;
 
   // ── Android → Expo push ──────────────────────────────────────────────────
-  if (androidSubs.length > 0) {
+  if (androidSubs.length > 0 && !notification.endedCallId) {
     const isIncomingCall = Boolean(notification.extraData?.callSessionId);
     // Ring-fallback tier: same call, same channel, same high priority — the
     // ONLY thing that changes is who renders it. See `forceSystemRendered`.
@@ -304,7 +347,10 @@ export async function sendPushNotificationToUser(
             },
           },
           JSON.stringify(payload),
-          { TTL: 300 },
+          // A ring is dead after CALL_RING_TIMEOUT_MS; `high` lets it through Doze.
+          payload.tag.startsWith("call-")
+            ? { TTL: payload.call ? 30 : 300, urgency: "high" }
+            : { TTL: 300 },
         );
         return { status: "ok" as const };
       } catch (error) {
