@@ -1,6 +1,6 @@
 import "server-only";
 
-import { SoftmatoClient } from "@softmato/sdk";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 
 import { completeChapterPurchase } from "@/lib/chapter-purchases";
 import { completeCoursePurchase } from "@/lib/course-purchases";
@@ -10,17 +10,79 @@ import { activateSubscription } from "@/lib/subscription-activation";
 import { finalizePercentageCouponRedemption } from "@/lib/subscription-coupons";
 import Transaction from "@/models/Transaction";
 
-let client: SoftmatoClient | null = null;
+/*
+ * Softmato's payment API, called directly. @softmato/sdk lives on a restricted
+ * GitHub Packages registry that Vercel's install cannot read (aba7815), so the
+ * three calls and the webhook check used here follow its wire format instead:
+ * Bearer client secret, an Idempotency-Key on every POST, and an HMAC-SHA256 of
+ * `${timestamp}.${rawBody}` on webhooks.
+ */
+const SOFTMATO_API = "https://softmato.com/api/v1";
 
-/** Lazy so a deploy without SOFTMATO_SECRET still builds; the call site answers 503. */
-export function getSoftmato(): SoftmatoClient {
-  const secret = process.env.SOFTMATO_SECRET;
+// ponytail: no retry on transport errors (the SDK retried with the same key); the buyer taps Pay again.
+async function softmatoRequest<T>(method: "GET" | "POST", path: string, body?: object): Promise<T> {
+  // Read per call so a deploy without SOFTMATO_SECRET still builds; the call site answers 503.
+  const secret = process.env.SOFTMATO_SECRET?.trim();
   if (!secret) throw new Error("SOFTMATO_SECRET is not set.");
-  client ??= new SoftmatoClient({
-    secret,
-    onWarning: (warning) => console.error("[softmato]", warning.message),
+
+  const res = await fetch(`${SOFTMATO_API}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      Accept: "application/json",
+      ...(body && { "Content-Type": "application/json", "Idempotency-Key": randomUUID() }),
+    },
+    body: body && JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
   });
-  return client;
+
+  // Set while a rotated-out secret still works: deploy the new one before it lapses.
+  const expires = res.headers.get("softmato-secret-expires");
+  if (expires) console.error(`[softmato] client secret superseded; it stops working at ${expires}`);
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(`Softmato ${method} ${path} failed (${res.status}): ${data?.error?.message ?? "no error body"}`);
+  }
+  return data as T;
+}
+
+export function getSoftmato() {
+  return {
+    /** Idempotent on external_ref: a repeat returns the existing invoice. */
+    createInvoice: (input: object) =>
+      softmatoRequest<{ invoice_id: string }>("POST", "/invoices", input),
+    /** No amount: Softmato reads it from the invoice. */
+    createCheckout: (input: { invoice_id: string; return_url: string }) =>
+      softmatoRequest<{ checkout_url: string }>("POST", "/checkout", input),
+    // An invoice number contains a slash; it travels as path segments, not %2F.
+    getInvoice: (invoiceId: string) =>
+      softmatoRequest<{ status: string }>(
+        "GET",
+        `/invoices/${invoiceId.split("/").map(encodeURIComponent).join("/")}`,
+      ),
+  };
+}
+
+/**
+ * Verify a webhook against its RAW body before trusting any field of it. The
+ * timestamp is inside the signature, and anything over 5 minutes off either way
+ * is refused, so a captured delivery cannot be replayed. Null when not genuine.
+ */
+export function verifySoftmatoWebhook(
+  secret: string,
+  body: string,
+  signature: string | null,
+  timestamp: string | null,
+): { event: string; invoice_id: string } | null {
+  const ts = Number(timestamp?.trim() || NaN);
+  if (!signature || !Number.isInteger(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return null;
+
+  const expected = Buffer.from(createHmac("sha256", secret).update(`${ts}.${body}`, "utf8").digest("hex"));
+  const claimed = Buffer.from(signature);
+  if (expected.length !== claimed.length || !timingSafeEqual(expected, claimed)) return null;
+
+  return JSON.parse(body);
 }
 
 /** NPR → paisa. The API only takes integers. */
