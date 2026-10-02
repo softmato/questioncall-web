@@ -7,6 +7,7 @@ import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Chapter from "@/models/Chapter";
 import ChapterContent from "@/models/ChapterContent";
 import ChapterEnrollment from "@/models/ChapterEnrollment";
+import { normalizeDurationPayload } from "@/lib/duration";
 
 const mux = new Mux({
   tokenId: process.env.MUX_TOKEN_ID || "demo",
@@ -77,16 +78,16 @@ export async function GET(
         : Promise.resolve(null),
     ]);
 
-    return NextResponse.json({
-      ...chapter,
-      contents,
-      ...(authenticatedUser?.role === "STUDENT" && enrollment
-        ? {
-            overallProgressPercent: enrollment.overallProgressPercent ?? 0,
-            accessType: enrollment.accessType,
-          }
-        : {}),
-    });
+    return NextResponse.json(normalizeDurationPayload({
+          ...chapter,
+          contents,
+          ...(authenticatedUser?.role === "STUDENT" && enrollment
+            ? {
+                overallProgressPercent: enrollment.overallProgressPercent ?? 0,
+                accessType: enrollment.accessType,
+              }
+            : {}),
+        }));
   } catch (error) {
     console.error("[GET /api/chapters/:id]", error);
     return NextResponse.json({ error: "Failed to load chapter." }, { status: 500 });
@@ -220,7 +221,7 @@ export async function PATCH(
 
     await chapter.save();
 
-    return NextResponse.json(chapter);
+    return NextResponse.json(normalizeDurationPayload(chapter));
   } catch (error) {
     console.error("[PATCH /api/chapters/:id]", error);
 
@@ -296,7 +297,7 @@ export async function DELETE(
     await ChapterContent.deleteMany({ chapterId: chapter._id });
     await Chapter.deleteOne({ _id: chapter._id });
 
-    return NextResponse.json({ deleted: true, chapterId: chapter._id.toString() });
+    return NextResponse.json(normalizeDurationPayload({ deleted: true, chapterId: chapter._id.toString() }));
   } catch (error) {
     console.error("[DELETE /api/chapters/:id]", error);
     return NextResponse.json({ error: "Failed to delete chapter." }, { status: 500 });

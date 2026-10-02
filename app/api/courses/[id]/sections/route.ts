@@ -7,6 +7,7 @@ import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Course from "@/models/Course";
 import CourseSection from "@/models/CourseSection";
 import CourseVideo from "@/models/CourseVideo";
+import { normalizeDurationPayload } from "@/lib/duration";
 
 function toSectionVideoStub(video: {
   _id: { toString(): string };
@@ -91,12 +92,12 @@ export async function GET(
       videosBySectionId.set(sectionId, existing);
     });
 
-    return NextResponse.json({
-      sections: sections.map((section) => ({
-        ...section,
-        videos: videosBySectionId.get(section._id.toString()) ?? [],
-      })),
-    });
+    return NextResponse.json(normalizeDurationPayload({
+          sections: sections.map((section) => ({
+            ...section,
+            videos: videosBySectionId.get(section._id.toString()) ?? [],
+          })),
+        }));
   } catch (error) {
     console.error("[GET /api/courses/:id/sections]", error);
     return NextResponse.json(
@@ -167,7 +168,7 @@ export async function POST(
       order: (lastSection?.order ?? 0) + 1,
     });
 
-    return NextResponse.json(section, { status: 201 });
+    return NextResponse.json(normalizeDurationPayload(section), { status: 201 });
   } catch (error) {
     console.error("[POST /api/courses/:id/sections]", error);
     return NextResponse.json(

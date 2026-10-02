@@ -1,3 +1,4 @@
+import { minutesFromSeconds, sumDurationMinutes } from "@/lib/duration";
 import { connectToDatabase } from "@/lib/mongodb";
 import { incrementEnrollmentVideoTotals } from "@/lib/course-progress";
 import { emitNotification } from "@/lib/pusher/pusherServer";
@@ -11,10 +12,6 @@ export type ReadyAssetInfo = {
   playbackId?: string | null;
   durationSeconds?: number | null;
 };
-
-function minutesFromSeconds(seconds: number) {
-  return Math.round((seconds / 60) * 100) / 100;
-}
 
 /**
  * Atomically promote a course video from PROCESSING → READY, roll up the
@@ -66,14 +63,14 @@ export async function finalizeReadyCourseVideo(
   if (section) {
     section.totalVideos = (section.totalVideos ?? 0) + 1;
     section.totalDurationMinutes =
-      (section.totalDurationMinutes ?? 0) + durationMinutes;
+      sumDurationMinutes(section.totalDurationMinutes ?? 0, durationMinutes);
     await section.save();
   }
 
   const course = await Course.findById(courseId);
   if (course) {
     course.totalDurationMinutes =
-      (course.totalDurationMinutes ?? 0) + durationMinutes;
+      sumDurationMinutes(course.totalDurationMinutes ?? 0, durationMinutes);
     await course.save();
   }
 

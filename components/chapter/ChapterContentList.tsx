@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import Link from "next/link";
 import { FileTextIcon, LockIcon, PlayCircleIcon } from "lucide-react";
@@ -62,7 +64,7 @@ export function ChapterContentList({
                 <span>
                   {content.type === "VIDEO"
                     ? content.status === "READY"
-                      ? `${Math.round(content.durationMinutes)} min`
+                      ? `${formatDuration(content.durationMinutes)}`
                       : content.status
                     : content.fileName || content.fileType || "Document"}
                 </span>

@@ -1,3 +1,4 @@
+import { formatDuration } from "@/lib/duration";
 import Link from "next/link";
 import { BookOpenIcon, Clock3Icon, PlayCircleIcon } from "lucide-react";
 
@@ -75,7 +76,7 @@ function ChapterCard({ chapter }: { chapter: ChapterCardData }) {
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Clock3Icon className="size-3.5" />
-            {chapter.totalDurationMinutes} min
+            {formatDuration(chapter.totalDurationMinutes)}
           </span>
           <span className="ml-auto font-semibold text-foreground">
             {priceLabel(chapter)}

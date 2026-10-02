@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -124,7 +126,7 @@ export function SectionAccordion({
                                   {video.order}. {video.title}
                                 </div>
                                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                  <span>{video.durationMinutes.toFixed(0)} min</span>
+                                  <span>{formatDuration(video.durationMinutes)}</span>
                                   {isPreview ? (
                                     <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-700 dark:text-emerald-300">
                                       Free preview

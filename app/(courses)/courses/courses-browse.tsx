@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -75,21 +77,6 @@ function getPricingColor(pricingModel: CourseCardData["pricingModel"]) {
   }
 
   return "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-400";
-}
-
-function formatDuration(totalMinutes: number) {
-  if (totalMinutes < 60) {
-    return `${Math.round(totalMinutes)} min`;
-  }
-
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = Math.round(totalMinutes % 60);
-
-  if (minutes === 0) {
-    return `${hours} hr`;
-  }
-
-  return `${hours} hr ${minutes} min`;
 }
 
 export function CoursesBrowseClient({
@@ -529,8 +516,6 @@ export function CoursesBrowseClient({
           </div>
         </section>
       ) : null}
-
-
 
       {featuredCourses.length > 0 ? (
         <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">

@@ -1,3 +1,4 @@
+import { minutesFromSeconds, sumDurationMinutes } from "@/lib/duration";
 import { connectToDatabase } from "@/lib/mongodb";
 import { emitNotification } from "@/lib/pusher/pusherServer";
 import Chapter from "@/models/Chapter";
@@ -10,10 +11,6 @@ export type ReadyAssetInfo = {
   playbackId?: string | null;
   durationSeconds?: number | null;
 };
-
-function minutesFromSeconds(seconds: number) {
-  return Math.round((seconds / 60) * 100) / 100;
-}
 
 /**
  * Chapter analogue of finalizeReadyCourseVideo. Atomically promotes a chapter
@@ -55,7 +52,7 @@ export async function finalizeReadyChapterContent(
   const chapter = await Chapter.findById(chapterId);
   if (chapter) {
     chapter.totalDurationMinutes =
-      (chapter.totalDurationMinutes ?? 0) + durationMinutes;
+      sumDurationMinutes(chapter.totalDurationMinutes ?? 0, durationMinutes);
     await chapter.save();
   }
 

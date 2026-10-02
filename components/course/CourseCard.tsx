@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDuration } from "@/lib/duration";
 import { BookOpenIcon, Clock3Icon, Users2Icon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -104,7 +105,7 @@ export function CourseCard({
         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
           <div className="inline-flex items-center gap-1">
             <Clock3Icon className="size-3.5" />
-            <span>{totalDurationMinutes.toFixed(0)} min</span>
+            <span>{formatDuration(totalDurationMinutes)}</span>
           </div>
           <div className="inline-flex items-center gap-1">
             <Users2Icon className="size-3.5" />

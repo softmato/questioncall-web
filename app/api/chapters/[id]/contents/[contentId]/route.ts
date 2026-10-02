@@ -1,3 +1,4 @@
+import { sumDurationMinutes } from "@/lib/duration";
 import { NextRequest, NextResponse } from "next/server";
 import { Types } from "mongoose";
 import Mux from "@mux/mux-node";
@@ -239,7 +240,7 @@ export async function DELETE(
     if (content.type === "VIDEO" && (content.durationMinutes ?? 0) > 0) {
       chapter.totalDurationMinutes = Math.max(
         0,
-        (chapter.totalDurationMinutes ?? 0) - (content.durationMinutes ?? 0),
+        sumDurationMinutes(chapter.totalDurationMinutes ?? 0, -(content.durationMinutes ?? 0)),
       );
       await chapter.save();
     }

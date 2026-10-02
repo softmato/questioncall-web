@@ -1,3 +1,4 @@
+import { normalizeDuration } from "@/lib/duration";
 import {
   HydratedDocument,
   InferSchemaType,
@@ -88,6 +89,7 @@ const chapterSchema = new Schema(
     },
     totalDurationMinutes: {
       type: Number,
+      set: normalizeDuration,
       default: 0,
       min: 0,
     },

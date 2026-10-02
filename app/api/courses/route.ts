@@ -7,6 +7,7 @@ import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Course from "@/models/Course";
 import CourseEnrollment from "@/models/CourseEnrollment";
 import User from "@/models/User";
+import { normalizeDurationPayload } from "@/lib/duration";
 
 const COURSE_PRICING_MODELS = ["FREE", "SUBSCRIPTION_INCLUDED", "PAID"] as const;
 const COURSE_CREATE_STATUSES = ["DRAFT", "ACTIVE"] as const;
@@ -228,15 +229,15 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      courses: responseCourses,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: total > 0 ? Math.ceil(total / limit) : 0,
-      },
-    });
+    return NextResponse.json(normalizeDurationPayload({
+          courses: responseCourses,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: total > 0 ? Math.ceil(total / limit) : 0,
+          },
+        }));
   } catch (error) {
     console.error("[GET /api/courses]", error);
     return NextResponse.json(
@@ -370,7 +371,7 @@ export async function POST(request: NextRequest) {
       console.error("[POST /api/courses] course realtime emit failed", error);
     });
 
-    return NextResponse.json(course, { status: 201 });
+    return NextResponse.json(normalizeDurationPayload(course), { status: 201 });
   } catch (error) {
     await destroyCourseThumbnail(uploadedThumbnailPublicId);
     console.error("[POST /api/courses]", error);

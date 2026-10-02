@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import { useState } from "react";
 import Link from "next/link";
@@ -278,13 +280,7 @@ export function ManageCourseClient({
   };
 
   // ── Helpers ──
-  function formatDuration(min: number) {
-    if (min < 1) return "<1m";
-    if (min < 60) return `${Math.round(min)}m`;
-    const h = Math.floor(min / 60);
-    const m = Math.round(min % 60);
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }
+
 
   function getStatusBadge(status: string) {
     const map: Record<string, string> = {

@@ -13,6 +13,7 @@ import CourseVideo from "@/models/CourseVideo";
 import LiveSession from "@/models/LiveSession";
 import User from "@/models/User";
 import VideoProgress from "@/models/VideoProgress";
+import { normalizeDurationPayload } from "@/lib/duration";
 
 cloudinary.config({
   secure: true,
@@ -208,7 +209,7 @@ export async function GET(
         : {}),
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(normalizeDurationPayload(response));
   } catch (error) {
     console.error("[GET /api/courses/:id]", error);
     return NextResponse.json(
@@ -329,10 +330,10 @@ export async function PATCH(
       // empty duplicate, and it restores nothing, so the merge is one-way.
       if (course.mergedInto && status !== "ARCHIVED") {
         return NextResponse.json(
-          {
-            error:
-              "This course was merged into another one and cannot be published again.",
-          },
+          normalizeDurationPayload({
+                      error:
+                        "This course was merged into another one and cannot be published again.",
+                    }),
           { status: 400 },
         );
       }
@@ -401,7 +402,7 @@ export async function PATCH(
       console.error("[PATCH /api/courses/:id] course realtime emit failed", error);
     });
 
-    return NextResponse.json(course);
+    return NextResponse.json(normalizeDurationPayload(course));
   } catch (error) {
     console.error("[PATCH /api/courses/:id]", error);
 
@@ -498,10 +499,10 @@ export async function DELETE(
       console.error("[DELETE /api/courses/:id] course realtime emit failed", error);
     });
 
-    return NextResponse.json({
-      deleted: true,
-      courseId: course._id.toString(),
-    });
+    return NextResponse.json(normalizeDurationPayload({
+          deleted: true,
+          courseId: course._id.toString(),
+        }));
   } catch (error) {
     console.error("[DELETE /api/courses/:id]", error);
     return NextResponse.json(

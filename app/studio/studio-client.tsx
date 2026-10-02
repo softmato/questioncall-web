@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -108,13 +110,6 @@ export function CourseStudioClient({ courses, chapters, userRole }: Props) {
       client.unsubscribe(COURSE_UPDATES_CHANNEL);
     };
   }, [router]);
-
-  function formatDuration(minutes: number) {
-    if (minutes < 60) return `${minutes}m`;
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }
 
   function getStatusColor(status: string) {
     switch (status) {

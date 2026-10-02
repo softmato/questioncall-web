@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import Link from "next/link";
 import {
@@ -22,21 +24,6 @@ type Props = {
   isAuthenticated: boolean;
   userRole: UserRole;
 };
-
-function formatDuration(totalMinutes: number) {
-  if (totalMinutes < 60) {
-    return `${Math.round(totalMinutes)} min`;
-  }
-
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = Math.round(totalMinutes % 60);
-
-  if (minutes === 0) {
-    return `${hours} hr`;
-  }
-
-  return `${hours} hr ${minutes} min`;
-}
 
 export function CourseDetailClient({
   course,
@@ -192,7 +179,7 @@ export function CourseDetailClient({
                           <div className="mt-1 text-sm text-muted-foreground">
                             {new Date(session.scheduledAt).toLocaleString()}
                             {session.durationMinutes
-                              ? ` · ${session.durationMinutes} min`
+                              ? ` · ${formatDuration(session.durationMinutes)}`
                               : ""}
                           </div>
                         </div>

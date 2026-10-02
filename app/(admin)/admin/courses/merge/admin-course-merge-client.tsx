@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -167,7 +169,7 @@ export function AdminCourseMergeClient({ courses }: { courses: CourseRow[] }) {
             </li>
             <li>
               It now holds <strong>{result.targetTotals.totalVideoCount}</strong> ready
-              videos ({result.targetTotals.totalDurationMinutes} min).
+              videos ({formatDuration(result.targetTotals.totalDurationMinutes)}).
             </li>
             {result.deactivatedCoupons > 0 && (
               <li>

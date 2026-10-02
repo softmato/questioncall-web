@@ -256,7 +256,7 @@ export async function GET(request: Request, context: RouteParams) {
         pricingModel: course.pricingModel,
         thumbnailUrl: course.thumbnailUrl ?? null,
         instructorName: course.instructorName,
-        totalDurationMinutes: course.totalDurationMinutes ?? null,
+        totalDurationMinutes: course.totalDurationMinutes == null ? null : normalizeDuration(course.totalDurationMinutes),
         enrollmentCount: course.enrollmentCount ?? 0,
       })),
       mediaAssets,
@@ -271,3 +271,4 @@ export async function GET(request: Request, context: RouteParams) {
     );
   }
 }
+import { normalizeDuration } from "@/lib/duration";

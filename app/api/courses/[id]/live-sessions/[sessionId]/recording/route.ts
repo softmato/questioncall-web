@@ -1,3 +1,4 @@
+import { minutesFromSeconds, sumDurationMinutes } from "@/lib/duration";
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { Types } from "mongoose";
@@ -21,10 +22,6 @@ type UploadedVideoResult = {
   duration: number;
   public_id: string;
 };
-
-function minutesFromSeconds(seconds: number) {
-  return Math.round((seconds / 60) * 100) / 100;
-}
 
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -388,11 +385,11 @@ export async function POST(
 
       section.totalVideos = (section.totalVideos ?? 0) + 1;
       section.totalDurationMinutes =
-        (section.totalDurationMinutes ?? 0) + durationMinutes;
+        sumDurationMinutes(section.totalDurationMinutes ?? 0, durationMinutes);
       await section.save();
 
       course.totalDurationMinutes =
-        (course.totalDurationMinutes ?? 0) + durationMinutes;
+        sumDurationMinutes(course.totalDurationMinutes ?? 0, durationMinutes);
       await course.save();
 
       await incrementEnrollmentVideoTotals(id, 1);

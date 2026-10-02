@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "@/lib/unified-auth";
 import Chapter from "@/models/Chapter";
 import ChapterEnrollment from "@/models/ChapterEnrollment";
 import User from "@/models/User";
+import { normalizeDurationPayload } from "@/lib/duration";
 
 const CHAPTER_PRICING_MODELS = ["FREE", "SUBSCRIPTION_INCLUDED", "PAID"] as const;
 const CHAPTER_CREATE_STATUSES = ["DRAFT", "ACTIVE"] as const;
@@ -131,15 +132,15 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      chapters: responseChapters,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: total > 0 ? Math.ceil(total / limit) : 0,
-      },
-    });
+    return NextResponse.json(normalizeDurationPayload({
+          chapters: responseChapters,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: total > 0 ? Math.ceil(total / limit) : 0,
+          },
+        }));
   } catch (error) {
     console.error("[GET /api/chapters]", error);
     return NextResponse.json({ error: "Failed to load chapters." }, { status: 500 });
@@ -231,7 +232,7 @@ export async function POST(request: NextRequest) {
       status: normalizedStatus,
     });
 
-    return NextResponse.json(chapter, { status: 201 });
+    return NextResponse.json(normalizeDurationPayload(chapter), { status: 201 });
   } catch (error) {
     console.error("[POST /api/chapters]", error);
 

@@ -1,3 +1,4 @@
+import { minutesFromSeconds } from "@/lib/duration";
 import { Types } from "mongoose";
 
 import { connectToDatabase } from "@/lib/mongodb";
@@ -410,7 +411,7 @@ export async function mergeCoursesIntoTarget(
         $group: {
           _id: null,
           count: { $sum: 1 },
-          durationMinutes: { $sum: { $ifNull: ["$durationMinutes", 0] } },
+          durationMinutes: { $sum: { $round: [{ $multiply: [{ $ifNull: ["$durationMinutes", 0] }, 60] }, 0] } },
         },
       },
     ]),
@@ -418,7 +419,7 @@ export async function mergeCoursesIntoTarget(
   ]);
 
   const totalVideoCount = readyVideoStats[0]?.count ?? 0;
-  const totalDurationMinutes = Math.round(readyVideoStats[0]?.durationMinutes ?? 0);
+  const totalDurationMinutes = minutesFromSeconds(readyVideoStats[0]?.durationMinutes ?? 0);
 
   target.totalDurationMinutes = totalDurationMinutes;
   target.enrollmentCount = enrollmentCount;
@@ -438,7 +439,7 @@ export async function mergeCoursesIntoTarget(
         $group: {
           _id: null,
           count: { $sum: 1 },
-          durationMinutes: { $sum: { $ifNull: ["$durationMinutes", 0] } },
+          durationMinutes: { $sum: { $round: [{ $multiply: [{ $ifNull: ["$durationMinutes", 0] }, 60] }, 0] } },
         },
       },
     ]);
@@ -446,7 +447,7 @@ export async function mergeCoursesIntoTarget(
       { _id: section._id },
       {
         totalVideos: stats[0]?.count ?? 0,
-        totalDurationMinutes: Math.round(stats[0]?.durationMinutes ?? 0),
+        totalDurationMinutes: minutesFromSeconds(stats[0]?.durationMinutes ?? 0),
       },
     );
   }

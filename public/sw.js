@@ -53,7 +53,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  if (request.method !== "GET") {
+  if (
+    request.method !== "GET" ||
+    request.destination === "video" ||
+    request.destination === "audio" ||
+    request.headers.has("range") ||
+    /\.(?:m3u8|mp4|m4s|ts|mp3|m4a|aac|ogg|webm|wav)(?:[?#]|$)/i.test(request.url)
+  ) {
     return;
   }
 

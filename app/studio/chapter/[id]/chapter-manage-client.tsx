@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import { useRef, useState } from "react";
 import Link from "next/link";
@@ -266,7 +268,7 @@ export function ChapterManageClient({ chapter }: { chapter: ChapterDetailData })
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {content.type === "VIDEO"
-                            ? `${Math.round(content.durationMinutes)} min · ${content.viewCount} views`
+                            ? `${formatDuration(content.durationMinutes)} · ${content.viewCount} views`
                             : content.fileName || content.fileType || "Document"}
                         </div>
                       </div>

@@ -1,3 +1,4 @@
+import { normalizeDuration } from "@/lib/duration";
 import "server-only";
 
 import { Types } from "mongoose";
@@ -214,7 +215,7 @@ function toCourseCardData(
     pricingModel: course.pricingModel,
     price: course.price ?? null,
     thumbnailUrl: course.thumbnailUrl ?? null,
-    totalDurationMinutes: course.totalDurationMinutes ?? 0,
+    totalDurationMinutes: normalizeDuration(course.totalDurationMinutes ?? 0),
     enrollmentCount: course.enrollmentCount ?? 0,
     instructorName: course.instructorName ?? APP_NAME,
     instructorRole: course.instructorRole ?? "TEACHER",
@@ -273,7 +274,7 @@ function sortSectionsAndVideos(
       description: section.description ?? null,
       order: section.order,
       totalVideos: section.totalVideos ?? 0,
-      totalDurationMinutes: section.totalDurationMinutes ?? 0,
+      totalDurationMinutes: normalizeDuration(section.totalDurationMinutes ?? 0),
       videos: videosBySectionId.get(section._id.toString()) ?? [],
     }))
     .sort((left, right) => left.order - right.order);
@@ -572,7 +573,7 @@ export async function getCourseDetailPageData(input: {
     price: course.price ?? null,
     freePreviewCount: course.freePreviewCount ?? 0,
     thumbnailUrl: course.thumbnailUrl ?? null,
-    totalDurationMinutes: course.totalDurationMinutes ?? 0,
+    totalDurationMinutes: normalizeDuration(course.totalDurationMinutes ?? 0),
     enrollmentCount: course.enrollmentCount ?? 0,
     instructorName: course.instructorName,
     instructorRole: course.instructorRole,
@@ -673,7 +674,7 @@ export async function getMyCoursesPageData(studentId: string) {
         instructorName: course.instructorName ?? APP_NAME,
         pricingModel: course.pricingModel,
         price: course.price ?? null,
-        totalDurationMinutes: course.totalDurationMinutes ?? 0,
+        totalDurationMinutes: normalizeDuration(course.totalDurationMinutes ?? 0),
         totalVideos: enrollment.totalVideoCount ?? 0,
         watchedVideos: enrollment.completedVideoCount ?? 0,
         progressPercent: enrollment.overallProgressPercent ?? 0,

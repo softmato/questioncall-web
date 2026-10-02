@@ -1,3 +1,4 @@
+import { normalizeDuration } from "@/lib/duration";
 import { HydratedDocument, InferSchemaType, Schema, model, models } from "mongoose";
 
 const courseVideoSchema = new Schema(
@@ -63,6 +64,7 @@ const courseVideoSchema = new Schema(
     },
     durationMinutes: {
       type: Number,
+      set: normalizeDuration,
       default: 0,
       min: 0,
     },

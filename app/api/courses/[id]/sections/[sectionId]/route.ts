@@ -1,3 +1,4 @@
+import { sumDurationMinutes } from "@/lib/duration";
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { Types } from "mongoose";
@@ -219,13 +220,13 @@ export async function DELETE(
     );
 
     const removedDuration = videos.reduce(
-      (sum, video) => sum + (video.durationMinutes ?? 0),
+      (sum, video) => sumDurationMinutes(sum, video.durationMinutes ?? 0),
       0,
     );
 
     course.totalDurationMinutes = Math.max(
       0,
-      (course.totalDurationMinutes ?? 0) - removedDuration,
+      sumDurationMinutes(course.totalDurationMinutes ?? 0, -removedDuration),
     );
     await course.save();
 

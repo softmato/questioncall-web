@@ -1,3 +1,4 @@
+import { sumDurationMinutes } from "@/lib/duration";
 import { NextRequest, NextResponse } from "next/server";
 
 import { Types } from "mongoose";
@@ -15,6 +16,7 @@ import LiveSession from "@/models/LiveSession";
 import VideoProgress from "@/models/VideoProgress";
 
 import Mux from "@mux/mux-node";
+import { normalizeDurationPayload } from "@/lib/duration";
 
 const mux = new Mux({
   tokenId: process.env.MUX_TOKEN_ID || "demo",
@@ -100,7 +102,7 @@ export async function GET(
       ? `https://stream.mux.com/${video.muxPlaybackId}.m3u8`
       : video.videoUrl ?? null;
 
-    return NextResponse.json({ ...plain, playbackUrl, isPreview });
+    return NextResponse.json(normalizeDurationPayload({ ...plain, playbackUrl, isPreview }));
   } catch (error) {
     console.error("[GET /api/courses/:id/videos/:videoId]", error);
     return NextResponse.json(
@@ -239,13 +241,13 @@ export async function PATCH(
       oldSection.totalVideos = Math.max(0, (oldSection.totalVideos ?? 1) - 1);
       oldSection.totalDurationMinutes = Math.max(
         0,
-        (oldSection.totalDurationMinutes ?? 0) - (video.durationMinutes ?? 0),
+        sumDurationMinutes(oldSection.totalDurationMinutes ?? 0, -(video.durationMinutes ?? 0)),
       );
       await oldSection.save();
 
       targetSection.totalVideos = (targetSection.totalVideos ?? 0) + 1;
       targetSection.totalDurationMinutes =
-        (targetSection.totalDurationMinutes ?? 0) + (video.durationMinutes ?? 0);
+        sumDurationMinutes(targetSection.totalDurationMinutes ?? 0, (video.durationMinutes ?? 0));
       await targetSection.save();
 
       video.sectionId = targetSection._id;
@@ -277,7 +279,7 @@ export async function PATCH(
     await video.save();
 
     const updatedVideo = await CourseVideo.findById(video._id);
-    return NextResponse.json(updatedVideo);
+    return NextResponse.json(normalizeDurationPayload(updatedVideo));
   } catch (error) {
     console.error("[PATCH /api/courses/:id/videos/:videoId]", error);
     return NextResponse.json(
@@ -343,13 +345,13 @@ export async function DELETE(
     section.totalVideos = Math.max(0, (section.totalVideos ?? 1) - 1);
     section.totalDurationMinutes = Math.max(
       0,
-      (section.totalDurationMinutes ?? 0) - (video.durationMinutes ?? 0),
+      sumDurationMinutes(section.totalDurationMinutes ?? 0, -(video.durationMinutes ?? 0)),
     );
     await section.save();
 
     course.totalDurationMinutes = Math.max(
       0,
-      (course.totalDurationMinutes ?? 0) - (video.durationMinutes ?? 0),
+      sumDurationMinutes(course.totalDurationMinutes ?? 0, -(video.durationMinutes ?? 0)),
     );
     await course.save();
 
@@ -360,7 +362,7 @@ export async function DELETE(
     await CourseVideo.deleteOne({ _id: video._id });
     await resequenceVideos(section._id.toString());
 
-    return NextResponse.json({ deleted: true, videoId });
+    return NextResponse.json(normalizeDurationPayload({ deleted: true, videoId }));
   } catch (error) {
     console.error("[DELETE /api/courses/:id/videos/:videoId]", error);
     return NextResponse.json(

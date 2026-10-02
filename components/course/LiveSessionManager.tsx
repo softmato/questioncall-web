@@ -1,4 +1,6 @@
 "use client";
+import { formatDuration } from "@/lib/duration";
+
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -332,7 +334,7 @@ export function LiveSessionManager({
                       {session.durationMinutes && (
                         <div className="flex items-center gap-1">
                           <Clock3Icon className="size-3.5" />
-                          {session.durationMinutes} min
+                          {formatDuration(session.durationMinutes)}
                         </div>
                       )}
                     </div>

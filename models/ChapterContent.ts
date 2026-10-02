@@ -1,3 +1,4 @@
+import { normalizeDuration } from "@/lib/duration";
 import { HydratedDocument, InferSchemaType, Schema, model, models } from "mongoose";
 
 // A flat, ordered item inside a Chapter. Unlike CourseVideo (which belongs to a
@@ -65,6 +66,7 @@ const chapterContentSchema = new Schema(
     },
     durationMinutes: {
       type: Number,
+      set: normalizeDuration,
       default: 0,
       min: 0,
     },
