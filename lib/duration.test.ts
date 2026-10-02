@@ -17,7 +17,10 @@ test("course totals add whole seconds and format without decimal artifacts", () 
   assert.equal(formatDuration(43.620000000000005), "43m 37s");
   assert.equal(formatDuration(12.55), "12m 33s");
   assert.equal(formatDuration(sumDurationMinutes(total, -12.55)), "31m 4s");
-  assert.equal(formatDuration(59.999), "60 min");
+  assert.equal(formatDuration(59.999), "1h");
+  assert.equal(formatDuration(241), "4h 1m");
+  assert.equal(formatDuration(120), "2h");
+  assert.equal(formatDuration(61.5), "1h 1m 30s");
   assert.equal(formatDuration(undefined), "0 min");
   assert.equal(formatDuration(NaN), "0 min");
   assert.equal(minutesFromSeconds(0.9), 0.016667);
