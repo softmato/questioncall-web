@@ -68,6 +68,7 @@ interface PopulatedQuestion {
   title: string;
   body: string;
   status: string;
+  answerVisibility?: string;
   reactions: string[];
   createdAt: Date;
   reactionCount?: number;
@@ -159,6 +160,8 @@ export default async function PublicProfilePage({
 
   const viewerHandle = session?.user ? getUserHandle(session.user) : null;
   const isOwner = viewerHandle === profile.username;
+  // A teacher's detailed activity is their earnings and penalties; only they see it.
+  const canSeeActivity = isOwner || profile.role === "STUDENT";
 
   await connectToDatabase();
   const isStudent = profile.role === "STUDENT";
@@ -182,15 +185,26 @@ export default async function PublicProfilePage({
     model: Answer,
   });
 
-  const latestQuestions = await Question.find({
-    [isStudent ? "askerId" : "acceptedById"]: new mongoose.Types.ObjectId(
-      profile.id,
-    ),
-  })
-    .populate({ path: "answerId", model: Answer })
-    .sort({ createdAt: -1 })
-    .limit(10)
-    .lean();
+  const latestQuestions = (
+    await Question.find({
+      [isStudent ? "askerId" : "acceptedById"]: new mongoose.Types.ObjectId(
+        profile.id,
+      ),
+    })
+      .populate({ path: "answerId", model: Answer })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean<PopulatedQuestion[]>()
+  ).map(hidePrivateAnswer);
+  featureQuestions = featureQuestions.map(hidePrivateAnswer);
+
+  // A private answer is for the asker and the teacher only. The feed and the
+  // public-profile API already drop it; this page is public, so it must too.
+  function hidePrivateAnswer(question: PopulatedQuestion): PopulatedQuestion {
+    return isOwner || question.answerVisibility === "PUBLIC"
+      ? question
+      : { ...question, answerId: null };
+  }
 
   let totalMediaFiles = 0;
   const videoUrls: { url: string; questionId: string }[] = [];
@@ -433,6 +447,7 @@ export default async function PublicProfilePage({
                     : profile.totalAnswered}
                 </span>
               </Link>
+              {canSeeActivity && (
               <Link
                 href={`/${profile.username}?tab=activity`}
                 className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${tab === "activity" ? "border-primary text-primary bg-primary/5 rounded-t-md" : "border-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground"}`}
@@ -442,6 +457,7 @@ export default async function PublicProfilePage({
                 />
                 Activity
               </Link>
+              )}
               {profile.role === "TEACHER" && (
                 <Link
                   href={`/${profile.username}?tab=media`}
@@ -730,7 +746,7 @@ export default async function PublicProfilePage({
                 </div>
               )}
             </div>
-          ) : tab === "activity" ? (
+          ) : tab === "activity" && canSeeActivity ? (
             <ActivityGraph userId={profile.id} role={profile.role as "STUDENT" | "TEACHER"} isOwner={isOwner} />
           ) : null}
         </div>

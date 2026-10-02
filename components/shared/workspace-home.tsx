@@ -773,7 +773,7 @@ export function WorkspaceHome({
                   </>
                 ) : null}
                 <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(15,23,42,0.88),rgba(15,23,42,0.18))]" />
-                <div className="absolute left-2.5 top-2.5 rounded-full bg-white/15 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur-sm">
+                <div className="absolute left-2.5 top-2.5 max-w-[45%] truncate rounded-full bg-white/15 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur-sm">
                   {course.subject}
                 </div>
                 <div className="absolute right-2.5 top-2.5 rounded-full bg-black/20 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur-sm">
@@ -1481,11 +1481,15 @@ export function WorkspaceHome({
               const comments = dedupeComments(commentsMap[item.id] || []);
               const isAcceptLoading = acceptingId === item.id;
               const totalReactions = item.reactions.length;
-              const askerProfileHref = getProfilePath({
-                id: item.askerId,
-                name: item.askerName,
-                username: item.askerUsername,
-              });
+              // No asker id means the account is gone ("Anonymous"): a handle
+              // derived from that name would link to a 404.
+              const askerProfileHref = item.askerId
+                ? getProfilePath({
+                    id: item.askerId,
+                    name: item.askerName,
+                    username: item.askerUsername,
+                  })
+                : null;
 
               // Determine which reaction the current user has (if any)
               const userReaction = userId
@@ -1541,9 +1545,14 @@ export function WorkspaceHome({
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-3">
                             <Link
-                              href={askerProfileHref}
-                              className="group/avatar relative z-10 flex shrink-0 items-center justify-center"
+                              href={askerProfileHref ?? "#"}
+                              className={cn(
+                                "group/avatar relative z-10 flex shrink-0 items-center justify-center",
+                                !askerProfileHref && "pointer-events-none",
+                              )}
                               aria-label={`Open ${item.askerName}'s profile`}
+                              aria-disabled={!askerProfileHref}
+                              tabIndex={askerProfileHref ? undefined : -1}
                             >
                               {item.askerImage ? (
                                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -1564,12 +1573,18 @@ export function WorkspaceHome({
 
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5">
-                                <Link
-                                  href={askerProfileHref}
-                                  className="text-[15px] font-bold tracking-tight text-foreground transition-colors hover:text-primary hover:underline"
-                                >
-                                  {item.askerName}
-                                </Link>
+                                {askerProfileHref ? (
+                                  <Link
+                                    href={askerProfileHref}
+                                    className="text-[15px] font-bold tracking-tight text-foreground transition-colors hover:text-primary hover:underline"
+                                  >
+                                    {item.askerName}
+                                  </Link>
+                                ) : (
+                                  <span className="text-[15px] font-bold tracking-tight text-foreground">
+                                    {item.askerName}
+                                  </span>
+                                )}
                                 {item.askerIsOnline ? (
                                   <span
                                     className="size-[7px] rounded-full bg-emerald-500"
@@ -1933,7 +1948,9 @@ export function WorkspaceHome({
                             </p>
                             <p className="mt-1 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
                               {item.previewText ||
-                                "Accept this question and be the first to help with a clear answer."}
+                                (role === "TEACHER"
+                                  ? "Accept this question and be the first to help with a clear answer."
+                                  : "Waiting for a teacher to accept this question.")}
                             </p>
                           </div>
                         )}
@@ -1943,7 +1960,7 @@ export function WorkspaceHome({
                         <div className="flex items-center justify-between sm:justify-start sm:gap-2">
                           {/* Mobile reactions */}
                           <div className="flex items-center gap-3 md:hidden">
-                            {REACTION_CONFIG.map(({ type, icon: Icon }) => {
+                            {REACTION_CONFIG.map(({ type, icon: Icon, label }) => {
                               const count = item.reactions.filter(
                                 (r) => r.type === type,
                               ).length;
@@ -1952,6 +1969,8 @@ export function WorkspaceHome({
                                 <button
                                   key={type}
                                   type="button"
+                                  aria-label={`${label} (${count})`}
+                                  aria-pressed={isActive}
                                   onClick={() => handleReact(item.id, type)}
                                   className={cn(
                                     "flex items-center gap-1.5 text-xs font-medium transition-colors",
@@ -1981,6 +2000,8 @@ export function WorkspaceHome({
                           <div className="flex items-center gap-3 sm:gap-2">
                             <button
                               type="button"
+                              aria-label={`${item.commentCount} comments`}
+                              aria-expanded={isExpandedComments}
                               onClick={() => toggleComments(item.id)}
                               className={cn(
                                 "flex sm:inline-flex items-center gap-1.5 text-xs font-medium transition-colors sm:rounded-full sm:border sm:px-3 sm:py-1.5",

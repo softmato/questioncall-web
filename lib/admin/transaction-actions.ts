@@ -1,3 +1,5 @@
+import { Types } from "mongoose";
+
 import { completeCoursePurchase } from "@/lib/course-purchases";
 import { completeChapterPurchase } from "@/lib/chapter-purchases";
 import { getCoursePurchaseMetadata } from "@/lib/course-purchases";
@@ -33,7 +35,9 @@ export async function approveTransaction(args: {
 
   await connectToDatabase();
 
-  const transaction = await Transaction.findById(transactionId);
+  const transaction = Types.ObjectId.isValid(transactionId)
+    ? await Transaction.findById(transactionId)
+    : null;
   if (!transaction) {
     return { ok: false, error: "Transaction not found", status: 404 };
   }
@@ -273,7 +277,9 @@ export async function refundTransaction(args: {
 
   await connectToDatabase();
 
-  const transaction = await Transaction.findById(transactionId);
+  const transaction = Types.ObjectId.isValid(transactionId)
+    ? await Transaction.findById(transactionId)
+    : null;
   if (!transaction) {
     return { ok: false, error: "Transaction not found", status: 404 };
   }

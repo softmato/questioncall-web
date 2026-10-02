@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { getAuthenticatedUser } from "@/lib/unified-auth";
@@ -22,6 +23,9 @@ export async function POST(_request: Request, context: RouteParams) {
     }
 
     const { id: channelId } = await context.params;
+    if (!Types.ObjectId.isValid(channelId)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const userId = user.id;
 
     await connectToDatabase();

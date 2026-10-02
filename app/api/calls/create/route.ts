@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { after, NextResponse } from "next/server";
 import { AccessToken } from "livekit-server-sdk";
 
@@ -46,6 +47,9 @@ export async function POST(request: Request) {
     const { channelId, mode } = await request.json();
     if (!channelId || !mode) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    if (!Types.ObjectId.isValid(channelId)) {
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
 
     if (mode !== "AUDIO" && mode !== "VIDEO") {

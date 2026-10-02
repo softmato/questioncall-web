@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { logCallLifecycle } from "@/lib/call-logging";
@@ -42,6 +43,9 @@ type RouteParams = { params: Promise<{ id: string }> };
 export async function POST(request: Request, context: RouteParams) {
   try {
     const { id } = await context.params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     // Rate limit before touching the database: this route is reachable without
     // a session, so the unauthenticated path must not be a free read.

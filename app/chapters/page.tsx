@@ -16,7 +16,7 @@ export const metadata = createPageMetadata({
   path: "/chapters",
   keywords: [
     "study chapters Nepal",
-    "Question Call chapters",
+    "QuestionCall chapters",
     "single chapter course",
     "free preview lessons",
   ],

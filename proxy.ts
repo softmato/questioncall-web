@@ -59,6 +59,42 @@ function redirectToSignIn(request: NextRequest) {
   return NextResponse.redirect(signInUrl);
 }
 
+// Signed-in-only pages outside the role-gated groups below. Each page also
+// redirects a signed-out visitor, but only here is the requested path still
+// known, so only a redirect from here can bring them back after sign-in.
+const signInRequiredPrefixes = [
+  "/actions",
+  "/call",
+  "/calls",
+  "/courses/my",
+  "/daily-target",
+  "/leaderboard",
+  "/menu",
+  "/notes",
+  "/notices",
+  "/notifications",
+  "/onboarding",
+  "/profile",
+  "/question",
+  "/referral",
+  "/search",
+  "/studio",
+  "/upload-course",
+] as const;
+const signInRequiredPatterns = [
+  /^\/quiz\/[^/]+/,
+  /^\/chapters\/[^/]+\/buy$/,
+  /^\/courses\/[^/]+\/manage$/,
+];
+
+function requiresSignIn(pathname: string) {
+  return (
+    signInRequiredPrefixes.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    ) || signInRequiredPatterns.some((pattern) => pattern.test(pathname))
+  );
+}
+
 function requestHasSessionCookie(request: NextRequest) {
   return sessionCookieNames.some((cookieName) => request.cookies.has(cookieName));
 }
@@ -155,12 +191,17 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/message/") ||
     pathname.startsWith("/channel/") ||
     pathname.startsWith("/ask/") ||
+    pathname === "/leaderboard" ||
     pathname.startsWith("/leaderboard/");
   const isStudentRoute = pathname.startsWith("/student");
   const isTeacherRoute = pathname.startsWith("/teacher");
   const isAdminRoute = pathname.startsWith("/admin");
   const isProtectedRoute =
     isSharedProtectedRoute || isStudentRoute || isTeacherRoute || isAdminRoute;
+
+  if (!role && requiresSignIn(pathname)) {
+    return redirectToSignIn(request);
+  }
 
   if (!isProtectedRoute) {
     return NextResponse.next();
@@ -201,6 +242,25 @@ export const config = {
     "/channel/:path*",
     "/ask/:path*",
     "/leaderboard/:path*",
+    "/actions/:path*",
+    "/call/:path*",
+    "/calls/:path*",
+    "/courses/my/:path*",
+    "/courses/:slug/manage",
+    "/chapters/:slug/buy",
+    "/daily-target/:path*",
+    "/menu/:path*",
+    "/notes/:path*",
+    "/notices/:path*",
+    "/notifications/:path*",
+    "/onboarding/:path*",
+    "/profile/:path*",
+    "/question/:path*",
+    "/quiz/:path+",
+    "/referral/:path*",
+    "/search/:path*",
+    "/studio/:path*",
+    "/upload-course/:path*",
     "/student/:path*",
     "/teacher/:path*",
     "/admin/:path*",

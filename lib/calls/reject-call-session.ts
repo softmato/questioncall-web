@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Types } from "mongoose";
+
 import { logCallLifecycle } from "@/lib/call-logging";
 import { getCallParticipantIds, getCallSummaryText } from "@/lib/call-utils";
 import CallSession from "@/models/CallSession";
@@ -37,7 +39,9 @@ export async function rejectCallSession(params: {
 }): Promise<RejectCallResult> {
   const { callSessionId, actingUserId, byDeviceId = null } = params;
 
-  const callSession = await CallSession.findById(callSessionId);
+  const callSession = Types.ObjectId.isValid(callSessionId)
+    ? await CallSession.findById(callSessionId)
+    : null;
   if (!callSession) {
     return { ok: false, status: 404, error: "Call session not found" };
   }

@@ -3,7 +3,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 
 export const metadata = createNoIndexMetadata({
   title: "Theme",
-  description: "Change your Question Call theme.",
+  description: "Change your QuestionCall theme.",
 });
 
 export default function ThemePage() {

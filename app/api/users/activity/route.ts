@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
+import { getAuthenticatedUser } from "@/lib/unified-auth";
 import mongoose from "mongoose";
 import WalletHistoryEvent from "@/models/WalletHistoryEvent";
 import Question from "@/models/Question";
@@ -24,6 +25,14 @@ export async function GET(req: NextRequest) {
     }
 
     const isTeacher = user.role === "TEACHER";
+
+    // A teacher's activity is their earnings, penalties and bonuses: owner and admins only.
+    if (isTeacher) {
+      const viewer = await getAuthenticatedUser(req);
+      if (viewer?.id !== userId && viewer?.role !== "ADMIN") {
+        return NextResponse.json({ error: "This activity is private." }, { status: 403 });
+      }
+    }
 
     // Determine start date based on period and range
     const now = new Date();

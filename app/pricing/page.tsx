@@ -12,11 +12,11 @@ import { cn } from "@/lib/utils";
 export const metadata = createPageMetadata({
   title: "Subscription Plans & Pricing",
   description:
-    "Compare Question Call subscription plans. Ask questions to expert teachers, unlock subscription courses, and play premium quizzes. Start free.",
+    "Compare QuestionCall subscription plans. Ask questions to expert teachers, unlock subscription courses, and play premium quizzes. Start free.",
   path: "/pricing",
   keywords: [
-    "Question Call subscription",
-    "Question Call pricing",
+    "QuestionCall subscription",
+    "QuestionCall pricing",
     "online tuition plans Nepal",
     "student subscription Nepal",
   ],

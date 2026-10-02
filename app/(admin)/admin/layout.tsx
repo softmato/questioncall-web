@@ -12,7 +12,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 
 export const metadata = createNoIndexMetadata({
   title: "Admin",
-  description: "Private administrative routes for Question Call staff.",
+  description: "Private administrative routes for QuestionCall staff.",
 });
 
 async function getAdminCounts(adminUserId: string) {

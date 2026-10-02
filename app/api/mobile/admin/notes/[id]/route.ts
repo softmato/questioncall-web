@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { requireMobileAdmin } from "@/lib/mobile-admin-auth";
@@ -16,6 +17,9 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     await connectToDatabase();
     await Note.findByIdAndDelete(id);
     return NextResponse.json({ success: true });

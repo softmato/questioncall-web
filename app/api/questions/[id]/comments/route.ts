@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { after } from "next/server";
@@ -147,6 +148,9 @@ function dedupeCommentsById(comments: SerializedComment[]): SerializedComment[] 
 export async function GET(request: Request, context: RouteParams) {
   try {
     const { id: questionId } = await context.params;
+    if (!Types.ObjectId.isValid(questionId)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const { searchParams } = new URL(request.url);
     const limit = parseLimit(searchParams.get("limit"));
 
@@ -190,6 +194,9 @@ export async function POST(request: Request, context: RouteParams) {
     }
 
     const { id: questionId } = await context.params;
+    if (!Types.ObjectId.isValid(questionId)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const body = (await request.json()) as CommentRequestBody;
     const content =
       typeof body.content === "string" ? body.content.trim() : "";

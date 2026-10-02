@@ -342,13 +342,14 @@ export function AuthenticatedHeader({
                 size="icon-sm"
                 className="size-9 sm:size-auto sm:px-3 sm:py-1.5"
                 onClick={() => setIsPostModalOpen(true)}
+                aria-label={primaryLabel}
               >
                 <PlusIcon className="size-[18px] sm:size-4 sm:mr-1" />
                 <span className="hidden sm:inline">{primaryLabel}</span>
               </Button>
             ) : (
               <Button asChild size="icon-sm" className="size-9 sm:size-auto sm:px-3 sm:py-1.5" variant={primaryLabel === "Open messages" ? "outline" : "default"}>
-                <Link href={primaryHref}>
+                <Link href={primaryHref} aria-label={primaryLabel}>
                   <PlusIcon className="size-[18px] sm:hidden" />
                   <span className="hidden sm:inline">{primaryLabel}</span>
                 </Link>

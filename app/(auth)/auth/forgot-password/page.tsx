@@ -7,7 +7,7 @@ import { ForgotPasswordClient } from "./forgot-password-client";
 
 export const metadata = createNoIndexMetadata({
   title: "Forgot Password",
-  description: "Reset your password for Question Call.",
+  description: "Reset your password for QuestionCall.",
 });
 
 export default async function ForgotPasswordPage() {

@@ -25,7 +25,7 @@ export async function generateMetadata({
     path: `/chapters/${slug}`,
     image: chapter?.thumbnailUrl ?? null,
     keywords: [
-      "Question Call chapters",
+      "QuestionCall chapters",
       "study chapters Nepal",
       chapter?.subject ?? "",
       chapter?.title ?? "",

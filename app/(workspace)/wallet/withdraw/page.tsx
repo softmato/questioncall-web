@@ -3,7 +3,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 
 export const metadata = createNoIndexMetadata({
   title: "Withdraw",
-  description: "Open your Question Call wallet withdrawal screen.",
+  description: "Open your QuestionCall wallet withdrawal screen.",
 });
 
 export default function WithdrawPage() {

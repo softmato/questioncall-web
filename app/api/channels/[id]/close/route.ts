@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { getAuthenticatedUser } from "@/lib/unified-auth";
@@ -138,15 +139,20 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const user = await getAuthenticatedUser(req);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { rating } = await req.json();
+    // Normalised so a string "1" cannot pass the range check and then miss the
+    // `rating === 1` penalty branch below.
+    const rating = Number((await req.json().catch(() => null))?.rating);
 
-    if (!rating || rating < 1 || rating > 5) {
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       return NextResponse.json({ error: "Valid rating (1-5) is required" }, { status: 400 });
     }
 
@@ -166,16 +172,25 @@ export async function POST(
       return NextResponse.json({ error: "Only the asker can close the channel" }, { status: 403 });
     }
 
+    // Close atomically before any points move: a double-tapped or retried
+    // rating used to pass the ACTIVE check twice and pay the teacher twice.
+    const closedAt = new Date();
+    const claim = await Channel.updateOne(
+      { _id: channel._id, status: "ACTIVE" },
+      { $set: { status: "CLOSED", closedAt, isClosedByAsker: true, ratingGiven: rating } },
+    );
+    if (claim.modifiedCount === 0) {
+      return NextResponse.json({ error: "Channel is already closed or expired" }, { status: 400 });
+    }
+    channel.status = "CLOSED";
+    channel.closedAt = closedAt;
+    channel.isClosedByAsker = true;
+    channel.ratingGiven = rating;
+
     const teacher = await User.findById(channel.acceptorId);
     const answer = await Answer.findOne({ channelId: channel._id });
 
     if (rating === 1 && teacher) {
-      channel.status = "CLOSED";
-      channel.closedAt = new Date();
-      channel.isClosedByAsker = true;
-      channel.ratingGiven = rating;
-      await channel.save();
-
       if (answer) {
         answer.rating = rating;
         await answer.save();
@@ -325,12 +340,6 @@ export async function POST(
         questionReset: question ? (question.resetCount || 0) < maxResets : false
       });
     }
-
-    channel.status = "CLOSED";
-    channel.closedAt = new Date();
-    channel.isClosedByAsker = true;
-    channel.ratingGiven = rating;
-    await channel.save();
 
     const question = await Question.findById(channel.questionId);
     if (question) {

@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse, after } from "next/server";
 
 import { connectToDatabase } from "@/lib/mongodb";
@@ -26,6 +27,9 @@ export async function POST(request: Request, context: RouteParams) {
     }
 
     const { id } = await context.params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const body = (await request.json()) as ReactToQuestionPayload;
 
     if (!body.type || !(REACTION_TYPES as readonly string[]).includes(body.type)) {

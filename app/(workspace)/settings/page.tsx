@@ -23,7 +23,7 @@ const settingSections = [
 export const dynamic = "force-dynamic";
 export const metadata = createNoIndexMetadata({
   title: "Settings",
-  description: "Manage your Question Call workspace settings and preferences.",
+  description: "Manage your QuestionCall workspace settings and preferences.",
 });
 
 export default function SettingsPage() {

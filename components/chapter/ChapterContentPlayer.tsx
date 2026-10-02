@@ -1,6 +1,6 @@
 "use client";
 
-import MuxPlayer from "@mux/mux-player-react";
+import { MuxPlayer } from "@/components/shared/lazy-mux-player";
 import { FileTextIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

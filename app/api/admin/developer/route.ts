@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/mongodb";
 import DeveloperConfig, {
   IDeveloperConfig,
 } from "@/models/DeveloperConfig";
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await connectToDatabase();
     const config = await DeveloperConfig.findOne();
     return NextResponse.json({
       emails: config?.emails || [],
@@ -23,6 +31,11 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await connectToDatabase();
     const body = await request.json();
     const { action } = body;
 

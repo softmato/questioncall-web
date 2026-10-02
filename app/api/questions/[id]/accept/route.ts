@@ -35,6 +35,9 @@ export async function POST(_request: Request, context: RouteParams) {
     }
 
     const { id } = await context.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     await connectToDatabase();
 
@@ -71,11 +74,22 @@ export async function POST(_request: Request, context: RouteParams) {
     const timerDeadline = new Date(now.getTime() + formatDurationMinutes * 60 * 1000);
 
     // Claim the question first — this is the guard against a double-accept,
-    // so it must land before we create any channel that depends on it.
+    // so it must land before we create any channel that depends on it. The
+    // status condition makes it atomic: a plain save() let two teachers who
+    // tapped together both "win" and each get a channel.
+    const claim = await Question.updateOne(
+      { _id: question._id, status: { $in: ["OPEN", "RESET"] } },
+      { $set: { status: "ACCEPTED", acceptedById: authenticatedUser.id, acceptedAt: now } },
+    );
+    if (claim.modifiedCount === 0) {
+      return NextResponse.json(
+        { error: "This question is no longer open for acceptance" },
+        { status: 409 },
+      );
+    }
     question.status = "ACCEPTED";
     question.acceptedById = authenticatedUser.id;
     question.acceptedAt = now;
-    await question.save();
 
     // The channel _id is pre-generated, so the channel row, the auto-message
     // that lives in it, and the acceptor lookup have no ordering dependency

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import MuxPlayer from "@mux/mux-player-react";
+import { MuxPlayer } from "@/components/shared/lazy-mux-player";
 
 /**
  * Extracts a Mux playback ID from a Mux URL.

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import MuxPlayer from "@mux/mux-player-react";
+import { MuxPlayer } from "@/components/shared/lazy-mux-player";
 import {
   ArrowLeftIcon,
   BarChart3Icon,

@@ -15,8 +15,6 @@
  * (e.g. a global toast) can subscribe to updates.
  */
 
-import imageCompression from "browser-image-compression";
-import * as UpChunk from "@mux/upchunk";
 import { toast } from "sonner";
 import type { ChatMessage } from "@/types/channel";
 
@@ -354,6 +352,8 @@ async function uploadVideoViaMux(
   }
 
   const { uploadUrl, uploadId } = await signRes.json();
+  // Loaded on first use: the upload managers start on every page.
+  const UpChunk = await import("@mux/upchunk");
 
   // 2. Upload the original file directly to Mux in chunks. This does not
   // compress/transcode the source before Mux receives it.
@@ -434,6 +434,7 @@ async function uploadFileViaCloudinary(
   ) {
     try {
       updateJob(jobId, { status: "compressing" });
+      const { default: imageCompression } = await import("browser-image-compression");
       fileToUpload = await imageCompression(params.file, {
         maxSizeMB: 5,
         maxWidthOrHeight: 1920,

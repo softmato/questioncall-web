@@ -34,10 +34,11 @@ const apiRequestLogSchema = new Schema(
       default: Date.now,
       index: true,
     },
+    // Indexed only by the TTL index below: a second plain index on the same
+    // key conflicts with it, and whichever one MongoDB built first wins.
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
     },
   },
   {

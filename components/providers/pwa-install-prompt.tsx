@@ -252,7 +252,7 @@ export function PWAInstallPrompt() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  {isManualIosPrompt ? "Add Question Call to Home Screen" : "Install Question Call"}
+                  {isManualIosPrompt ? "Add QuestionCall to Home Screen" : "Install QuestionCall"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {isManualIosPrompt

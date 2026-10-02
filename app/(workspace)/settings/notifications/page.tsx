@@ -4,7 +4,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export const metadata = createNoIndexMetadata({
   title: "Notification Settings",
-  description: "Manage Question Call notification settings.",
+  description: "Manage QuestionCall notification settings.",
 });
 
 export default function NotificationSettingsPage() {

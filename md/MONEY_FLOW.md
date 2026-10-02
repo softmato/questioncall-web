@@ -1,10 +1,10 @@
-# Question Call Money Flow Overview
+# QuestionCall Money Flow Overview
 
-This document explains, in plain language, how money, bonuses, and penalties move inside Question Call.
+This document explains, in plain language, how money, bonuses, and penalties move inside QuestionCall.
 
 ## 1. What the platform tracks
 
-Question Call currently has four value systems:
+QuestionCall currently has four value systems:
 
 - `Subscription money (NPR)`: what students pay to access paid plans.
 - `Course purchase money (NPR)`: what students pay to unlock paid courses.

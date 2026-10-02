@@ -38,6 +38,7 @@ import {
 } from "@/lib/pusher/events";
 import {
   PERSISTENT_CALL_START_EVENT,
+  takePendingPersistentCall,
   type PersistentCallStartDetail,
 } from "@/lib/persistent-call-events";
 import { cn } from "@/lib/utils";
@@ -618,11 +619,16 @@ export function PersistentCallHost() {
 
   useEffect(() => {
     const handleStart = (event: Event) => {
+      takePendingPersistentCall();
       const detail = (event as CustomEvent<PersistentCallStartDetail>).detail;
       if (detail?.callSessionId) {
         void startCall(detail.callSessionId);
       }
     };
+
+    // A start requested while this component's chunk was still loading.
+    const pending = takePendingPersistentCall();
+    if (pending?.callSessionId) void startCall(pending.callSessionId);
 
     window.addEventListener(PERSISTENT_CALL_START_EVENT, handleStart);
     return () => {

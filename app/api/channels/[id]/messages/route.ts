@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { getAuthenticatedUser } from "@/lib/unified-auth";
@@ -8,7 +9,7 @@ import { emitChannelMessage, pusherServer } from "@/lib/pusher/pusherServer";
 import { getUserPusherName, CHANNEL_UPDATED_EVENT } from "@/lib/pusher/events";
 import { sendPushNotificationToUser } from "@/lib/push/web-push";
 import Channel from "@/models/Channel";
-import Message from "@/models/Message";
+import Message, { MESSAGE_MEDIA_TYPES } from "@/models/Message";
 import Answer from "@/models/Answer";
 import type { ChatMessage, SendMessagePayload } from "@/types/channel";
 
@@ -23,6 +24,9 @@ export async function POST(request: Request, context: RouteParams) {
     }
 
     const { id: channelId } = await context.params;
+    if (!Types.ObjectId.isValid(channelId)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const userId = user.id;
 
     await connectToDatabase();
@@ -83,13 +87,23 @@ export async function POST(request: Request, context: RouteParams) {
       );
     }
 
+    // Media must already be uploaded: a device-local path (a failed upload
+    // retried as-is) saved a message nobody else could open.
+    if (body.mediaUrl && !/^https:\/\//i.test(body.mediaUrl)) {
+      return NextResponse.json({ error: "Media must be uploaded first." }, { status: 400 });
+    }
+    const mediaType = body.mediaType ? body.mediaType.toUpperCase() : null;
+    if (mediaType && !(MESSAGE_MEDIA_TYPES as readonly string[]).includes(mediaType)) {
+      return NextResponse.json({ error: "Unsupported media type." }, { status: 400 });
+    }
+
     // Save message
     const message = await Message.create({
       channelId,
       senderId: userId,
       content: body.content?.trim() || "",
       mediaUrl: body.mediaUrl || null,
-      mediaType: body.mediaType || null,
+      mediaType,
       mediaPublicId: body.mediaPublicId || null,
       isSeen: false,
       isDelivered: true,

@@ -92,7 +92,7 @@ export default async function PaymentPage({
         <div className="qc-course">
           <div>
             <div className="qc-course-title">{plan.name}</div>
-            <div className="qc-course-sub">Question Call membership</div>
+            <div className="qc-course-sub">QuestionCall membership</div>
           </div>
         </div>
 

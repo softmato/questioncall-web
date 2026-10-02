@@ -32,6 +32,9 @@ export async function POST(req: Request) {
     if (!channelId) {
       return NextResponse.json({ error: "Missing channelId" }, { status: 400 });
     }
+    if (!Types.ObjectId.isValid(channelId)) {
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 });
+    }
 
     await connectToDatabase();
 
@@ -169,17 +172,33 @@ export async function POST(req: Request) {
     // Based on the question, map the visibility
     const isPublic = question.answerVisibility === "PUBLIC";
 
-    // Create the Answer
-    const answer = await Answer.create({
-      questionId: question._id,
-      channelId,
-      acceptorId: user.id,
-      answerFormat: resolvedFormat,
-      content,
-      mediaUrls,
-      isPublic,
-      submittedAt: new Date(),
-    });
+    // Claim the submission on the channel first. Answer has no unique index on
+    // channelId, so the findOne check above let a double tap create two
+    // answers (and count twice toward the teacher's monetization threshold).
+    const claim = await Channel.updateOne(
+      { _id: channelId, status: "ACTIVE", answerSubmittedAt: null },
+      { $set: { answerSubmittedAt: new Date() } },
+    );
+    if (claim.modifiedCount === 0) {
+      return NextResponse.json({ error: "Answer already submitted" }, { status: 400 });
+    }
+
+    let answer;
+    try {
+      answer = await Answer.create({
+        questionId: question._id,
+        channelId,
+        acceptorId: user.id,
+        answerFormat: resolvedFormat,
+        content,
+        mediaUrls,
+        isPublic,
+        submittedAt: new Date(),
+      });
+    } catch (error) {
+      await Channel.updateOne({ _id: channelId }, { $set: { answerSubmittedAt: null } });
+      throw error;
+    }
 
     // ─── Monetization Tracking (Phase 7) ─────────────────────
     // Check if teacher should unlock monetization

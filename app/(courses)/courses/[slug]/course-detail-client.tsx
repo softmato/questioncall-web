@@ -97,7 +97,9 @@ export function CourseDetailClient({
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{course.subject}</Badge>
               <Badge variant="outline">{course.level}</Badge>
-              <Badge variant="outline">{course.status}</Badge>
+              {course.canManage ? (
+                <Badge variant="outline">{course.status}</Badge>
+              ) : null}
               {course.isFeatured ? (
                 <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
                   Featured
@@ -117,11 +119,15 @@ export function CourseDetailClient({
                 <GraduationCapIcon className="size-4 text-emerald-600" />
                 {course.instructorName}
               </span>
-              <span>·</span>
-              <span className="flex items-center gap-1">
-                <Users2Icon className="size-4" />
-                {course.enrollmentCount} enrolled
-              </span>
+              {course.enrollmentCount > 0 ? (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Users2Icon className="size-4" />
+                    {course.enrollmentCount} enrolled
+                  </span>
+                </>
+              ) : null}
               <span>·</span>
               <span className="flex items-center gap-1">
                 <VideoIcon className="size-4" />
@@ -217,7 +223,8 @@ export function CourseDetailClient({
             </div>
           </div>
 
-          <div className="w-full shrink-0 lg:w-[360px]">
+          {/* First on phones so the price and buy button aren't below every section. */}
+          <div className="order-first w-full shrink-0 lg:order-none lg:w-[360px]">
             <div className="sticky top-20">
               <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-lg">
                 <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-slate-800 to-emerald-900">
@@ -315,10 +322,12 @@ export function CourseDetailClient({
                         <Clock3Icon className="size-4 text-emerald-600" />
                         {formatDuration(course.totalDurationMinutes)}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Users2Icon className="size-4 text-emerald-600" />
-                        {course.enrollmentCount} students enrolled
-                      </div>
+                      {course.enrollmentCount > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <Users2Icon className="size-4 text-emerald-600" />
+                          {course.enrollmentCount} students enrolled
+                        </div>
+                      ) : null}
                       <div className="flex items-center gap-2">
                         <StarIcon className="size-4 text-emerald-600" />
                         Structured sections and progress tracking

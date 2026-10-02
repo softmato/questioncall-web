@@ -5,7 +5,9 @@ import type { NextAuthOptions, Session } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
+import { AUTH_RATE_LIMITS, enforceAuthRateLimit } from "@/lib/auth-rate-limit";
 import { normalizeCallSettings, type UserCallSettings } from "@/lib/call-settings";
 import { JWT_SECRET } from "@/lib/env";
 import { connectToDatabase } from "@/lib/mongodb";
@@ -37,7 +39,8 @@ export function getDefaultPath(role?: UserRole) {
 
 export { getProfilePath, getUserHandle };
 
-export async function getSafeServerSession() {
+// cache(): the root layout, the page and generateMetadata all ask in one render.
+export const getSafeServerSession = cache(async () => {
   try {
     return await getServerSession(authOptions);
   } catch (error) {
@@ -51,7 +54,7 @@ export async function getSafeServerSession() {
 
     throw error;
   }
-}
+});
 
 type WorkspaceUserRecord = Pick<
   UserRecord,
@@ -124,6 +127,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(
         credentials: { email: string; password: string } | undefined,
+        req,
       ): Promise<
         {
           id: string;
@@ -143,6 +147,22 @@ export const authOptions: NextAuthOptions = {
 
         await connectToDatabase();
 
+        // The phone's login is throttled; this form was an unlimited
+        // password-guessing endpoint. NextAuth passes plain header values.
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(req?.headers ?? {})) {
+          if (typeof value === "string") headers.set(name, value);
+        }
+        const limit = await enforceAuthRateLimit({
+          action: "web-login",
+          request: new Request("http://localhost/api/auth/callback/credentials", { headers }),
+          email,
+          ...AUTH_RATE_LIMITS.login,
+        });
+        if (!limit.ok) {
+          throw new Error("Too many sign-in attempts. Please wait a few minutes and try again.");
+        }
+
         const user = await User.findOne({ email }).select("+passwordHash");
 
         if (!user?.passwordHash) {
@@ -153,6 +173,16 @@ export const authOptions: NextAuthOptions = {
 
         if (!passwordMatches) {
           return null;
+        }
+
+        // Same rules as the phone's login (app/api/mobile/login).
+        if (user.isDeleted) {
+          throw new Error(
+            "This account is scheduled for deletion. To recover it, reset your password using \"Forgot password\".",
+          );
+        }
+        if (user.isSuspended) {
+          throw new Error("This account is suspended.");
         }
 
         return {
@@ -193,9 +223,12 @@ export const authOptions: NextAuthOptions = {
           const userOwnReferralCode = `REF-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
           const siteUrl = getSiteUrl();
           
-          // Get role and referral from cookies (set by AuthForm)
+          // Get role and referral from cookies (set by AuthForm). The cookie is
+          // client-controlled: anything but TEACHER must become STUDENT, or a
+          // hand-set "ADMIN" would create an admin account.
           const cookieStore = await cookies();
-          const role = (cookieStore.get("pending-role")?.value as UserRole) || "STUDENT";
+          const role: UserRole =
+            cookieStore.get("pending-role")?.value === "TEACHER" ? "TEACHER" : "STUDENT";
           const referralCode = cookieStore.get("pending-referral")?.value;
 
           let referrerUser = null;
@@ -321,7 +354,11 @@ export const authOptions: NextAuthOptions = {
           (user as any).role = newUser.role;
           (user as any).username = newUser.username;
         } else {
-          // Existing user
+          // Existing user. Suspended and deleted accounts are refused, as on the
+          // phone; the sign-in page explains the AccessDenied it lands on.
+          if (existingUser.isSuspended || existingUser.isDeleted) {
+            return false;
+          }
           user.id = existingUser.id;
           (user as any).role = existingUser.role;
           (user as any).username = existingUser.username;

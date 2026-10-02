@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import MuxPlayer from "@mux/mux-player-react";
+import { MuxPlayer } from "@/components/shared/lazy-mux-player";
 
 import { Progress } from "@/components/ui/progress";
 

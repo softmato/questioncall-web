@@ -103,13 +103,13 @@ export async function POST(request: Request) {
 
     const result = await sendAlertEmail({
       to: config.emails,
-      subject: "🧪 Test Alert from Question Call Platform",
+      subject: "🧪 Test Alert from QuestionCall Platform",
       body: `This is a test alert to verify that developer email notifications are working correctly.
 
 If you received this email, the error alerting system is properly configured.
 
 ---
-Automated test from Question Call Platform`,
+Automated test from QuestionCall Platform`,
     });
 
     if (!result.success) {

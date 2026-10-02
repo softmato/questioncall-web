@@ -41,7 +41,7 @@ export async function checkTeacherStudentPattern(teacherId: string, studentId: s
         userId: teacherId,
         type: "SYSTEM",
         message: warningMsg,
-        href: "/dashboard", // or wherever makes sense
+        href: "/feed",
       });
 
       await emitNotification(teacherId, notification);

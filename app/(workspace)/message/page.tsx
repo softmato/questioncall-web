@@ -4,7 +4,7 @@ import { MessageSquare } from "lucide-react";
 
 export const metadata = createNoIndexMetadata({
   title: "Messages",
-  description: "View your Question Call conversations and active channels.",
+  description: "View your QuestionCall conversations and active channels.",
 });
 
 export default function MessagesPage() {

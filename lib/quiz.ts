@@ -381,6 +381,7 @@ export async function finalizeQuizSession(input: {
 }
 
 export async function getSyncedQuizSession(sessionId: string, studentId: string) {
+  if (!Types.ObjectId.isValid(sessionId)) return null;
   await connectToDatabase();
 
   let session = await QuizSession.findOne({

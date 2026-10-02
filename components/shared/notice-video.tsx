@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import MuxPlayer from "@mux/mux-player-react";
+import { MuxPlayer } from "@/components/shared/lazy-mux-player";
 
 import { isMuxUrl } from "@/components/shared/chat-mux-player";
 

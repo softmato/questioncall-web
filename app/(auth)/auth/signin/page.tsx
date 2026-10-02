@@ -8,12 +8,23 @@ import { createNoIndexMetadata } from "@/lib/seo";
 type LoginPageProps = {
   searchParams: Promise<{
     callbackUrl?: string;
+    error?: string;
   }>;
 };
 
+// NextAuth sends a refused sign-in back here as ?error=<code>.
+function getSignInErrorMessage(code?: string) {
+  if (!code) return undefined;
+  if (code === "AccessDenied") {
+    return "We couldn't sign you in with this Google account. If the account is suspended or scheduled for deletion, use Forgot password or contact support.";
+  }
+  if (code === "CredentialsSignin") return "Invalid email or password.";
+  return "Sign-in failed. Please try again.";
+}
+
 export const metadata = createNoIndexMetadata({
   title: "Sign In",
-  description: "Sign in to your Question Call account.",
+  description: "Sign in to your QuestionCall account.",
 });
 
 export default async function SignInPage({ searchParams }: LoginPageProps) {
@@ -39,7 +50,13 @@ export default async function SignInPage({ searchParams }: LoginPageProps) {
       portalLabel="Student + Teacher"
       title="Sign in to continue"
     >
-      <AuthForm callbackUrl={callbackUrl} mode="login" />
+      <AuthForm
+        callbackUrl={callbackUrl}
+        initialError={getSignInErrorMessage(
+          typeof params.error === "string" ? params.error : undefined,
+        )}
+        mode="login"
+      />
     </AuthShell>
   );
 }

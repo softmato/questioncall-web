@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { getSafeServerSession } from "@/lib/auth";
@@ -24,6 +25,9 @@ export async function GET(
 
     await connectToDatabase();
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     const coupon = await CourseCoupon.findById(id).lean();
     if (!coupon) {

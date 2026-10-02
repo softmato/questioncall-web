@@ -264,6 +264,7 @@ function LandingStyles() {
           gap: 1px;
           text-align: left;
         }
+        .lpb-hero-notch-divider { display: none; }
       }
       
       html.dark .shiny-text {
@@ -629,7 +630,7 @@ function Nav() {
           >
             <Image
               src="/logo.png"
-              alt="Question Call logo"
+              alt="QuestionCall logo"
               width={38}
               height={38}
               priority
@@ -651,7 +652,7 @@ function Nav() {
           </span>
         </Link>
 
-        {/* Desktop nav - shown on md+ (768px+) */}
+        {/* Desktop nav - shown from 1100px; eleven items wrap below that */}
         <nav
           className="lpb-desktop-nav"
           style={{
@@ -780,7 +781,7 @@ function Nav() {
           </Link>
         </nav>
 
-        {/* Mobile nav - shown below md (below 768px) */}
+        {/* Compact nav - shown below 1100px */}
         <div
           ref={menuRef}
           className="lpb-mobile-nav"
@@ -941,11 +942,11 @@ function Nav() {
         </div>
       </div>
       <style>{`
-        @media (min-width: 768px) {
+        @media (min-width: 1100px) {
           .lpb-desktop-nav { display: flex !important; }
           .lpb-mobile-nav { display: none !important; }
         }
-        @media (max-width: 767px) {
+        @media (max-width: 1099px) {
           .lpb-desktop-nav { display: none !important; }
           .lpb-mobile-nav { display: flex !important; }
         }
@@ -1123,7 +1124,7 @@ function Hero({
               />
             </svg>
           </span>{" "}
-          question. <br className="hidden md:block" /> Get a teacher working <br className="hidden md:block" /> on them{" "}
+          question. <br className="hidden md:block" /> Get a teacher working <br className="hidden md:block" /> on it{" "}
           <span style={{ position: "relative", whiteSpace: "nowrap" }}>
             fast
             <svg
@@ -3728,7 +3729,7 @@ function Comparison({ isDark }: { isDark: boolean }) {
       }}
     >
       <div style={{ maxWidth: 700, margin: "0 auto" }}>
-        <SectionLabel label="Why Question Call" />
+        <SectionLabel label="Why QuestionCall" />
         <h2 style={{ ...headingStyle(isDark), textAlign: "center" }}>
           Built around real teaching moments
         </h2>
@@ -4019,7 +4020,7 @@ function Footer({
             >
               <Image
                 src="/logo.png"
-                alt="Question Call logo"
+                alt="QuestionCall logo"
                 width={32}
                 height={32}
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}

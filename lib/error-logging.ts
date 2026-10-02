@@ -1,5 +1,6 @@
 import ErrorLog from "@/models/ErrorLog";
 import DeveloperConfig from "@/models/DeveloperConfig";
+import { sendAlertEmail as deliverAlertEmail } from "@/lib/sendEmails/sendAlertEmail";
 
 function generateErrorKey(message: string, stack?: string): string {
   const base = message.slice(0, 100);
@@ -99,24 +100,13 @@ ${errorLog.stack ? `Stack trace:\n${errorLog.stack}` : ""}
 Please investigate and fix this issue.
 
 ---
-Automated alert from Question Call Platform`;
+Automated alert from QuestionCall Platform`;
 
-  try {
-    const res = await fetch("/api/admin/developer/send-alert", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: emails,
-        subject,
-        body,
-      }),
-    });
-
-    if (!res.ok) {
-      console.error("Failed to send alert email");
-    }
-  } catch (err) {
-    console.error("Error sending alert email:", err);
+  // Sent directly: this runs on the server, where a relative fetch() to our
+  // own API cannot resolve, so the alert used to fail every time.
+  const result = await deliverAlertEmail({ to: emails, subject, body });
+  if (!result.success) {
+    console.error("Failed to send alert email:", result.error);
   }
 }
 

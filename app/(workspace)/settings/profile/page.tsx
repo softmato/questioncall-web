@@ -16,7 +16,7 @@ import User, { UserRecord } from "@/models/User";
 export const dynamic = "force-dynamic";
 export const metadata = createNoIndexMetadata({
   title: "Edit Profile",
-  description: "Update your public Question Call profile details.",
+  description: "Update your public QuestionCall profile details.",
 });
 
 export default async function SettingsProfilePage() {

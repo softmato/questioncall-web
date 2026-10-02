@@ -1,16 +1,16 @@
-# Question Call
+# QuestionCall
 
 <div align="center">
-  <img src="https://questioncall.com/logo.png" alt="Question Call Logo" width="200" />
+  <img src="https://questioncall.com/logo.png" alt="QuestionCall Logo" width="200" />
   <h1>The Smarter Way to Learn</h1>
   <p>A dual-portal academic platform connecting students with expert teachers through interactive questions, video courses, live sessions, and gamified learning.</p>
 </div>
 
 ---
 
-## Why Question Call?
+## Why QuestionCall?
 
-| Traditional Learning | Question Call |
+| Traditional Learning | QuestionCall |
 |---------------------|--------------|
 | Ask a question, wait days for answer | Get verified answers in timed channels |
 | Passive video watching | Interactive progress tracking |

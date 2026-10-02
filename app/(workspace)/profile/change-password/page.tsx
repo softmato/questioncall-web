@@ -3,7 +3,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 
 export const metadata = createNoIndexMetadata({
   title: "Change Password",
-  description: "Change your Question Call password.",
+  description: "Change your QuestionCall password.",
 });
 
 export default function ChangePasswordPage() {

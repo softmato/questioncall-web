@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { logCallLifecycle } from "@/lib/call-logging";
@@ -24,6 +25,9 @@ export async function POST(request: Request, context: RouteParams) {
     }
     const userId = user.id;
     const { id } = await context.params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     await connectToDatabase();
 

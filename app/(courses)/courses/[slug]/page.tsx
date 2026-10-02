@@ -29,7 +29,7 @@ export async function generateMetadata({
     path: `/courses/${slug}`,
     image: course?.thumbnailUrl ?? null,
     keywords: [
-      "Question Call courses",
+      "QuestionCall courses",
       "online courses Nepal",
       course?.title ?? "",
     ].filter(Boolean),

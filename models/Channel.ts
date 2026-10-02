@@ -46,6 +46,11 @@ const channelSchema = new Schema(
       type: Date,
       default: null,
     },
+    // Claimed atomically by POST /api/answers so one channel gets one answer.
+    answerSubmittedAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       enum: CHANNEL_STATUSES,

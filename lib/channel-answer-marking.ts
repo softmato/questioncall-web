@@ -1,3 +1,5 @@
+import { Types } from "mongoose";
+
 import { connectToDatabase } from "@/lib/mongodb";
 import { MESSAGE_MARKED_EVENT, getChannelPusherName } from "@/lib/pusher/events";
 import { pusherServer } from "@/lib/pusher/pusherServer";
@@ -21,6 +23,9 @@ export async function markChannelMessageAsAnswer({
   userId,
   isMarkedAsAnswer,
 }: MarkChannelMessageParams): Promise<MarkChannelMessageResult> {
+  if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(messageId)) {
+    return { ok: false, error: "Message not found in this channel", status: 404 };
+  }
   await connectToDatabase();
 
   const channel = await Channel.findById(channelId);

@@ -20,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { COURSE_UPDATED_EVENT, COURSE_UPDATES_CHANNEL } from "@/lib/pusher/events";
-import { getPusherClient } from "@/lib/pusher/pusherClient";
 import { APP_NAME } from "@/lib/constants";
 import { useTheme } from "next-themes";
 
@@ -162,24 +161,35 @@ export function CoursesBrowseClient({
   }, [chapters, levelFilter, pricingFilter, search, subjectFilter]);
 
   useEffect(() => {
-    const client = getPusherClient();
+    // Live refresh is for signed-in learners. A visitor or crawler would hold a
+    // Pusher connection (a paid, capped resource), and download its client,
+    // just to browse.
+    if (!isAuthenticated) return;
 
-    if (!client) {
-      return;
-    }
+    let cancelled = false;
+    let stop: (() => void) | undefined;
 
-    const channel = client.subscribe(COURSE_UPDATES_CHANNEL);
-    const handleCourseUpdated = () => {
-      router.refresh();
-    };
+    void import("@/lib/pusher/pusherClient").then(({ getPusherClient }) => {
+      const client = getPusherClient();
+      if (cancelled || !client) return;
 
-    channel.bind(COURSE_UPDATED_EVENT, handleCourseUpdated);
+      const channel = client.subscribe(COURSE_UPDATES_CHANNEL);
+      const handleCourseUpdated = () => {
+        router.refresh();
+      };
+
+      channel.bind(COURSE_UPDATED_EVENT, handleCourseUpdated);
+      stop = () => {
+        channel.unbind(COURSE_UPDATED_EVENT, handleCourseUpdated);
+        client.unsubscribe(COURSE_UPDATES_CHANNEL);
+      };
+    });
 
     return () => {
-      channel.unbind(COURSE_UPDATED_EVENT, handleCourseUpdated);
-      client.unsubscribe(COURSE_UPDATES_CHANNEL);
+      cancelled = true;
+      stop?.();
     };
-  }, [router]);
+  }, [isAuthenticated, router]);
 
   return (
     <div className="min-h-svh bg-[#f6f8fb] dark:bg-background">

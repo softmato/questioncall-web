@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 import { AccessToken } from "livekit-server-sdk";
 
@@ -22,6 +23,9 @@ export async function POST(request: Request, context: RouteParams) {
     }
     const userId = user.id;
     const { id } = await context.params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     // Optional — identifies which of the callee's devices accepted, so the
     // CALL_HANDLED_EVENT fan-out can be ignored by the device that acted.

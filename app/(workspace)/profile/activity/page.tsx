@@ -5,7 +5,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export const metadata = createNoIndexMetadata({
   title: "My Activity",
-  description: "View your Question Call activity.",
+  description: "View your QuestionCall activity.",
 });
 
 export default async function ActivityPage() {

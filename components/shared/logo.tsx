@@ -32,7 +32,7 @@ export function LogoMark({
     >
       <Image
         src="/logo.png"
-        alt="Question Call logo"
+        alt="QuestionCall logo"
         fill
         priority={priority}
         sizes={`${size}px`}

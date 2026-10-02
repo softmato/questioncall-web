@@ -5,7 +5,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export const metadata = createNoIndexMetadata({
   title: "Menu",
-  description: "Open your Question Call app menu.",
+  description: "Open your QuestionCall app menu.",
 });
 
 export default async function MenuPage() {

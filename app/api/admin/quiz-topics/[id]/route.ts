@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
@@ -64,6 +65,9 @@ export async function PATCH(
     }
 
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const payload = (await request.json()) as QuizTopicPayload;
 
     const updates: Record<string, unknown> = {};
@@ -149,6 +153,9 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     await connectToDatabase();
 

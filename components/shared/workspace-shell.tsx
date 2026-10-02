@@ -231,7 +231,7 @@ function WorkspacePwaTopBar({
           <LogoMark size={30} className="rounded-xl" />
           <div className="min-w-0">
             <p className="truncate text-lg font-extrabold leading-5 text-foreground">
-              Question <span className="text-emerald-500">Call</span>
+              Question<span className="text-emerald-500">Call</span>
             </p>
           </div>
         </Link>
@@ -855,8 +855,8 @@ collapseSidebarOnClick: true,
           href: subscriptionHref,
           icon: CreditCardIcon,
           label: "Subscription",
-          badge: "plan",
-          badgeClassName: "text-muted-foreground bg-muted",
+          badge: null,
+          badgeClassName: undefined,
           isActive: pathname.startsWith("/subscription"),
           collapseSidebarOnClick: true,
         }]
@@ -865,8 +865,8 @@ collapseSidebarOnClick: true,
       href: walletHref,
       icon: WalletIcon,
       label: "Wallet",
-      badge: resolvedUser.role === "STUDENT" ? "money" : "cashout",
-      badgeClassName: "text-muted-foreground bg-muted",
+      badge: null,
+      badgeClassName: undefined,
       isActive: pathname.startsWith("/wallet"),
       collapseSidebarOnClick: true,
     },
@@ -886,7 +886,7 @@ collapseSidebarOnClick: true,
           label: "Courses",
           badge: null,
           badgeClassName: undefined,
-          isActive: pathname.startsWith("/courses"),
+          isActive: pathname.startsWith("/courses") && !pathname.startsWith("/courses/my"),
           collapseSidebarOnClick: true,
         },
         {

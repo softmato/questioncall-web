@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { NoticeClient } from "./notice-client";
 
 export const metadata: Metadata = {
-  title: "Notices | Admin | Question Call",
+  title: "Notices | Admin | QuestionCall",
   description: "Create and manage global notices",
 };
 

@@ -226,7 +226,7 @@ async function handlePush(event) {
     ? `Incoming ${call.video ? "video" : "voice"} call — tap to answer`
     : payload.body || "You have a new update.";
 
-  await self.registration.showNotification(payload.title || "Question Call", {
+  await self.registration.showNotification(payload.title || "QuestionCall", {
     body,
     icon: payload.icon || "/icon.png",
     badge: payload.badge || "/icon.png",

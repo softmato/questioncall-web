@@ -107,7 +107,7 @@ export async function DELETE(
               },
             },
           },
-        ]).session(dbSession);
+        ], { updatePipeline: true }).session(dbSession);
       });
     } finally {
       await dbSession.endSession();

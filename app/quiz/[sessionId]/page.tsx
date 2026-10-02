@@ -6,7 +6,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 
 export const metadata = createNoIndexMetadata({
   title: "Quiz Session",
-  description: "Private quiz session in Question Call.",
+  description: "Private quiz session in QuestionCall.",
 });
 
 export default async function QuizSessionPage({

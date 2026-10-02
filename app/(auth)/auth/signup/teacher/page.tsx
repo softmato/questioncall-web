@@ -8,12 +8,12 @@ import { createPageMetadata } from "@/lib/seo";
 export const metadata = createPageMetadata({
   title: "Teacher Sign Up",
   description:
-    "Create your free Question Call teacher account and start answering, teaching, and earning online.",
+    "Create your free QuestionCall teacher account and start answering, teaching, and earning online.",
   path: "/auth/signup/teacher",
   keywords: [
     "teacher signup",
     "teach online Nepal",
-    "Question Call teacher account",
+    "QuestionCall teacher account",
   ],
 });
 

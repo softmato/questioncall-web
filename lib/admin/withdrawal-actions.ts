@@ -36,6 +36,9 @@ export async function completeWithdrawal(args: {
       status: 400,
     };
   }
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return { ok: false, error: "Request not found", status: 404 };
+  }
 
   await connectToDatabase();
 
@@ -186,6 +189,9 @@ export async function rejectWithdrawal(args: {
 }): Promise<WithdrawalActionResult> {
   const { id, adminId } = args;
   const adminNote = args.adminNote ?? null;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return { ok: false, error: "Request not found or not pending", status: 404 };
+  }
 
   await connectToDatabase();
 

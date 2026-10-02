@@ -13,7 +13,6 @@
  * GlobalUploadToast, so uploads show in the floating progress indicator.
  */
 
-import imageCompression from "browser-image-compression";
 import { toast } from "sonner";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -203,6 +202,8 @@ async function uploadImageViaCloudinary(
   if (!file.type.includes("gif")) {
     try {
       updateJob(jobId, { status: "compressing" });
+      // Loaded on first use: the upload managers start on every page.
+      const { default: imageCompression } = await import("browser-image-compression");
       fileToUpload = await imageCompression(file, {
         maxSizeMB: 5,
         maxWidthOrHeight: 1920,

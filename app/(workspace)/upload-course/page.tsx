@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const metadata = createNoIndexMetadata({
   title: "Upload Course",
-  description: "Create and upload new courses for Question Call learners.",
+  description: "Create and upload new courses for QuestionCall learners.",
 });
 
 export default async function UploadCoursePage() {

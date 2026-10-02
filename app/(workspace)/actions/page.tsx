@@ -12,7 +12,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 
 export const metadata = createNoIndexMetadata({
   title: "Actions",
-  description: "Quick teacher actions inside Question Call.",
+  description: "Quick teacher actions inside QuestionCall.",
 });
 
 const actions = [

@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 
 import { PWAProvider } from "@/components/providers/pwa-provider";
 import { StoreProvider } from "@/components/providers/store-provider";
@@ -7,7 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { PageLoadingBar } from "@/components/shared/page-loading-bar";
-import { PersistentCallHost } from "@/components/shared/persistent-call-host";
+import { LazyPersistentCallHost } from "@/components/shared/persistent-call-host-lazy";
+import { getSafeServerSession } from "@/lib/auth";
 
 import "./globals.css";
 import { Inter, DM_Sans } from "next/font/google";
@@ -44,8 +44,8 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
   keywords: [
-    "Question Call",
-    "Question Call Nepal",
+    "QuestionCall",
+    "QuestionCall Nepal",
     "online learning Nepal",
     "student help Nepal",
     "ask expert teachers online",
@@ -149,11 +149,13 @@ const siteNavigationStructuredData = {
   })),
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSafeServerSession();
+
   return (
     <html lang="en" suppressHydrationWarning className={cn("h-full antialiased", "font-sans", inter.variable, dmSansHeading.variable)}>
       <body className="min-h-full flex flex-col">
@@ -168,15 +170,11 @@ export default function RootLayout({
           <StoreProvider>
             <TooltipProvider delayDuration={0}>
               {children}
-              <PersistentCallHost />
+              {session?.user ? <LazyPersistentCallHost /> : null}
             </TooltipProvider>
           </StoreProvider>
         </ThemeProvider>
         <Toaster position="top-right" richColors closeButton />
-        <Script
-          src="https://widget.cloudinary.com/v2.0/global/all.js"
-          strategy="afterInteractive"
-        />
         {/* Plain <script>, not next/script: only plain tags are emitted into the
             server-rendered HTML. Via next/script this JSON-LD lived solely in the
             RSC flight payload, so crawlers never saw it. */}

@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
- * ║               QUESTION HUB — Platform Config                     ║
+ * ║               QUESTIONCALL — Platform Config                    ║
  * ║                                                                  ║
  * ║  INITIAL SEED DATA — values below are used ONLY on first boot   ║
  * ║  to populate the PlatformConfig collection in MongoDB.           ║
@@ -266,7 +266,7 @@ export const WITHDRAWAL = {
 
 export const PLATFORM = {
   /** Name shown in headers, emails, etc. */
-  NAME: "Question Hub",
+  NAME: "QuestionCall",
 
   /** Supported payment gateways */
   GATEWAYS: ["SOFTMATO", "MANUAL"] as const,
@@ -366,7 +366,7 @@ export const REFERRAL = {
 
 export const LEGAL = {
   TERMS_OF_USE: `1. Using the platform fairly
-Question Hub is built for real academic learning, respectful collaboration, and honest communication. You agree not to misuse the platform, impersonate another person, or submit abusive, misleading, or unlawful content.
+QuestionCall is built for real academic learning, respectful collaboration, and honest communication. You agree not to misuse the platform, impersonate another person, or submit abusive, misleading, or unlawful content.
 
 2. Accounts and access
 You are responsible for the information you provide during sign up and for keeping your login credentials secure. You should not share your account with anyone else.

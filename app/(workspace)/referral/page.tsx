@@ -4,7 +4,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export const metadata = createNoIndexMetadata({
   title: "Referrals",
-  description: "Invite friends to Question Call.",
+  description: "Invite friends to QuestionCall.",
 });
 
 export default function ReferralPage() {

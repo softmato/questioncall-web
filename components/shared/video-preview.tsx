@@ -1,6 +1,6 @@
 "use client";
 
-import MuxPlayer from "@mux/mux-player-react";
+import { MuxPlayer } from "@/components/shared/lazy-mux-player";
 
 import { isMuxUrl } from "@/components/shared/chat-mux-player";
 import { cn } from "@/lib/utils";

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { CourseHeader } from "@/components/course/CourseHeader";
 import { QuizHubClient } from "@/components/quiz/quiz-hub-client";
 import { getDefaultPath, getSafeServerSession } from "@/lib/auth";
 import { createPageMetadata } from "@/lib/seo";
@@ -8,11 +9,11 @@ import { createPageMetadata } from "@/lib/seo";
 export const metadata = createPageMetadata({
   title: "Quiz Practice",
   description:
-    "Practice interactive quizzes on Question Call and sharpen your skills with guided learning.",
+    "Practice interactive quizzes on QuestionCall and sharpen your skills with guided learning.",
   path: "/quiz",
   keywords: [
     "quiz practice",
-    "Question Call quiz",
+    "QuestionCall quiz",
     "online quiz Nepal",
   ],
 });
@@ -22,8 +23,10 @@ export default async function QuizHubPage() {
 
   if (!session?.user) {
     return (
-      <div className="min-h-svh bg-[#f6f8fb] px-4 py-16 text-foreground dark:bg-background sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-4xl flex-col gap-8 rounded-[32px] border border-border bg-background p-8 shadow-sm">
+      <div className="min-h-svh bg-[#f6f8fb] text-foreground dark:bg-background">
+        <CourseHeader user={null} />
+        <div className="px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-8 rounded-[32px] border border-border bg-background p-6 shadow-sm sm:p-8">
           <div className="space-y-4">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
               Quiz Practice
@@ -32,7 +35,7 @@ export default async function QuizHubPage() {
               Test what you know before the real exam does.
             </h1>
             <p className="max-w-2xl text-base leading-7 text-muted-foreground">
-              Question Call quizzes help students practice faster with guided question sets,
+              QuestionCall quizzes help students practice faster with guided question sets,
               timed sessions, and progress that connects back to the rest of the platform.
             </p>
           </div>
@@ -72,6 +75,7 @@ export default async function QuizHubPage() {
               Sign in to continue
             </Link>
           </div>
+        </div>
         </div>
       </div>
     );

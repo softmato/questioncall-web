@@ -142,7 +142,13 @@ export const getPublicUserByUsername = cache(async (username: string) => {
     return mapDirectoryUser(directUser);
   }
 
-  const fallbackUsers = (await User.find({ role: { $in: ["STUDENT", "TEACHER"] } })
+  // Only legacy accounts without a stored username need their handle derived
+  // from name/email. Scanning everyone here made every unknown top-level path
+  // (bot probes included) load the whole user collection.
+  const fallbackUsers = (await User.find({
+    role: { $in: ["STUDENT", "TEACHER"] },
+    $or: [{ username: { $exists: false } }, { username: null }, { username: "" }],
+  })
     .select(publicDirectorySelect)
     .lean()) as DirectoryUser[];
 

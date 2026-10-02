@@ -1,8 +1,8 @@
 /**
  * Single source of truth for the platform display name.
- * Import this everywhere instead of hardcoding "Question Call".
+ * Import this everywhere instead of hardcoding "QuestionCall".
  */
-export const APP_NAME = "Question Call";
+export const APP_NAME = "QuestionCall";
 export const CONTACT_SERVICE_EMAIL = "questioncall24@gmail.com";
 export const MAX_CUSTOMER_SERVICE_CONTACTS = 3;
 export const DEFAULT_SOCIAL_HANDLE_BASE =
@@ -212,4 +212,4 @@ export function getDefaultPlatformSocialLinks() {
 
 /** Default meta description — keep under 160 chars for SERP display. */
 export const APP_DESCRIPTION =
-  "Question Call connects students with expert teachers for real-time Q&A, guided courses, and interactive quizzes — all in one academic platform.";
+  "QuestionCall connects students with expert teachers for real-time Q&A, guided courses, and interactive quizzes — all in one academic platform.";

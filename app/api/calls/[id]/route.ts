@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { connectToDatabase } from "@/lib/mongodb";
@@ -14,6 +15,9 @@ export async function GET(request: Request, context: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { id } = await context.params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     await connectToDatabase();
 

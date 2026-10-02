@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 import { requireMobileAdmin } from "@/lib/mobile-admin-auth";
@@ -59,6 +60,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   try {
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const payload = (await request.json()) as QuizTopicPayload;
 
     const updates: Record<string, unknown> = {};
@@ -115,6 +119,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
   try {
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     await connectToDatabase();
 
     const [questionCount, sessionCount] = await Promise.all([

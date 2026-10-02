@@ -21,6 +21,16 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Notifications and pushes are shared with the phone app and carry its
+      // routes; these send each to the website page that shows the same thing.
+      {
+        source: "/workspace/:id",
+        destination: "/channel/:id",
+        permanent: false,
+      },
+      { source: "/feed", destination: "/", permanent: false },
+      { source: "/chapters/my", destination: "/courses", permanent: false },
+      { source: "/studio/:courseId", destination: "/studio", permanent: false },
       {
         source: "/:path*",
         has: [{ type: "host", value: "www.questioncall.com" }],

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   BookOpenIcon,
@@ -22,8 +23,24 @@ type CourseHeaderProps = {
   } | null;
 };
 
+// "/courses" also prefixes "/courses/my", which has its own link.
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  if (href === "/courses" && pathname.startsWith("/courses/my")) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function CourseHeader({ user }: CourseHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname() ?? "";
+  const links = [
+    { href: "/", label: "Home" },
+    { href: "/courses", label: "Courses", icon: BookOpenIcon },
+    { href: "/chapters", label: "Chapters", icon: LayersIcon },
+    { href: "/quiz", label: "Quiz" },
+    { href: "/pricing", label: "Pricing" },
+    ...(user ? [{ href: "/courses/my", label: "My Courses", icon: GraduationCapIcon }] : []),
+  ];
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 10);
@@ -51,37 +68,27 @@ export function CourseHeader({ user }: CourseHeaderProps) {
 
         {/* Center — Nav links (hidden on mobile) */}
         <nav className="hidden items-center gap-1 md:flex">
-          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            <Link href="/">Home</Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm" className="text-emerald-600 dark:text-emerald-400 font-semibold">
-            <Link href="/courses">
-              <BookOpenIcon className="mr-1 size-4" />
-              Courses
-            </Link>
-          </Button>
-          {/* Public sections — crawlable from every page so search engines can
-              discover chapters, quizzes and pricing, not just the sign-up pages. */}
-          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            <Link href="/chapters">
-              <LayersIcon className="mr-1 size-4" />
-              Chapters
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            <Link href="/quiz">Quiz</Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            <Link href="/pricing">Pricing</Link>
-          </Button>
-          {user && (
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              <Link href="/courses/my">
-                <GraduationCapIcon className="mr-1 size-4" />
-                My Courses
-              </Link>
-            </Button>
-          )}
+          {links.map(({ href, label, icon: Icon }) => {
+            const active = isActivePath(pathname, href);
+            return (
+              <Button
+                key={href}
+                asChild
+                variant="ghost"
+                size="sm"
+                className={
+                  active
+                    ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                    : "text-muted-foreground hover:text-foreground"
+                }
+              >
+                <Link href={href} aria-current={active ? "page" : undefined}>
+                  {Icon ? <Icon className="mr-1 size-4" /> : null}
+                  {label}
+                </Link>
+              </Button>
+            );
+          })}
         </nav>
 
         {/* Right — Actions */}
@@ -124,44 +131,31 @@ export function CourseHeader({ user }: CourseHeaderProps) {
       <div className="border-t border-border/60 md:hidden">
         <div className="mx-auto max-w-7xl px-4 py-2 sm:px-6">
           <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <Button asChild size="sm" variant="ghost" className="shrink-0">
-              <Link href="/">Home</Link>
-            </Button>
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-              className="shrink-0 border-emerald-600/30 text-emerald-700 dark:text-emerald-400"
-            >
-              <Link href="/courses">
-                <BookOpenIcon className="mr-1 size-4" />
-                Courses
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="ghost" className="shrink-0">
-              <Link href="/chapters">
-                <LayersIcon className="mr-1 size-4" />
-                Chapters
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="ghost" className="shrink-0">
-              <Link href="/quiz">Quiz</Link>
-            </Button>
-            <Button asChild size="sm" variant="ghost" className="shrink-0">
-              <Link href="/pricing">Pricing</Link>
-            </Button>
-            {user ? (
-              <>
-                <Button asChild size="sm" variant="ghost" className="shrink-0">
-                  <Link href="/courses/my">
-                    <GraduationCapIcon className="mr-1 size-4" />
-                    My Courses
+            {links.map(({ href, label, icon: Icon }) => {
+              const active = isActivePath(pathname, href);
+              return (
+                <Button
+                  key={href}
+                  asChild
+                  size="sm"
+                  variant={active ? "outline" : "ghost"}
+                  className={
+                    active
+                      ? "shrink-0 border-emerald-600/30 text-emerald-700 dark:text-emerald-400"
+                      : "shrink-0"
+                  }
+                >
+                  <Link href={href} aria-current={active ? "page" : undefined}>
+                    {Icon ? <Icon className="mr-1 size-4" /> : null}
+                    {label}
                   </Link>
                 </Button>
-                <Button asChild size="sm" variant="outline" className="shrink-0">
-                  <Link href="/">Dashboard</Link>
-                </Button>
-              </>
+              );
+            })}
+            {user ? (
+              <Button asChild size="sm" variant="outline" className="shrink-0">
+                <Link href="/">Dashboard</Link>
+              </Button>
             ) : (
               <>
                 <Button asChild size="sm" variant="ghost" className="shrink-0">

@@ -441,7 +441,7 @@ export function OnboardingVideosClient() {
                   onChange={(event) =>
                     setEditor((prev) => ({ ...prev, title: event.target.value }))
                   }
-                  placeholder="Getting started on Question Call"
+                  placeholder="Getting started on QuestionCall"
                 />
               </div>
 

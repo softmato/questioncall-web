@@ -248,11 +248,21 @@ export async function processExpiredChannels(
         continue;
       }
 
-      channel.status = "CLOSED";
-      channel.closedAt = now;
-      channel.isClosedByAsker = false;
-      channel.ratingGiven = AUTO_CLOSE_RATING;
-      await channel.save();
+      // Conditional, like every other channel transition: this runs from cron
+      // and from request handlers at once, and the asker may rate meanwhile.
+      // An unconditional save() paid the teacher once per runner.
+      const autoClose = await Channel.updateOne(
+        { _id: channel._id, status: "ACTIVE" },
+        {
+          $set: {
+            status: "CLOSED",
+            closedAt: now,
+            isClosedByAsker: false,
+            ratingGiven: AUTO_CLOSE_RATING,
+          },
+        },
+      );
+      if (autoClose.modifiedCount === 0) continue;
 
       existingAnswer.rating = AUTO_CLOSE_RATING;
       await existingAnswer.save();
@@ -413,10 +423,19 @@ export async function processExpiredChannels(
       continue;
     }
 
-    channel.status = "EXPIRED";
-    channel.closedAt = now;
-    channel.ratingGiven = 1;
-    await channel.save();
+    // Only a channel still unanswered and still past its (possibly extended)
+    // deadline expires; otherwise a last-second answer or extension, or a
+    // second runner, earned the teacher a penalty.
+    const expire = await Channel.updateOne(
+      {
+        _id: channel._id,
+        status: "ACTIVE",
+        timerDeadline: { $lte: now },
+        answerSubmittedAt: null,
+      },
+      { $set: { status: "EXPIRED", closedAt: now, ratingGiven: 1 } },
+    );
+    if (expire.modifiedCount === 0) continue;
 
     const teacherId = getRefId(channel.acceptorId as RefLike);
     const penalty = config.scoreDeductionAmount || 1;

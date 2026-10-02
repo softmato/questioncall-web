@@ -7,7 +7,6 @@
  */
 
 import { toast } from "sonner";
-import * as UpChunk from "@mux/upchunk";
 
 import type { AppStore } from "@/store/store";
 import {
@@ -180,7 +179,7 @@ async function performUpload({
   }
 }
 
-function uploadFileToMux({
+async function uploadFileToMux({
   uploadUrl,
   file,
   onProgress,
@@ -191,6 +190,8 @@ function uploadFileToMux({
   onProgress: (progress: number) => void;
   onAbortReady: (abort: () => void) => void;
 }) {
+  // Loaded on first use: the upload manager starts on every page.
+  const UpChunk = await import("@mux/upchunk");
   return new Promise<void>((resolve, reject) => {
     const upload = UpChunk.createUpload({
       endpoint: uploadUrl,

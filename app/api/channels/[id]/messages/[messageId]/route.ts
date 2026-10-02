@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 
@@ -20,6 +21,9 @@ export async function DELETE(request: Request, context: RouteParams) {
     }
     const userId = user.id;
     const { id: channelId, messageId } = await context.params;
+    if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(messageId)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     await connectToDatabase();
 

@@ -115,7 +115,7 @@ export function SocialHandlesHover({
             Social
           </p>
           <p className="mt-1 text-sm font-semibold text-foreground">
-            Question Call handles
+            QuestionCall handles
           </p>
         </div>
 

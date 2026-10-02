@@ -5,7 +5,7 @@ import { createNoIndexMetadata } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export const metadata = createNoIndexMetadata({
   title: "Daily Target",
-  description: "Track your Question Call daily answers.",
+  description: "Track your QuestionCall daily answers.",
 });
 
 export default async function DailyTargetPage() {

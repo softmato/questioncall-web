@@ -8,7 +8,7 @@ import { getSignInPath } from "@/lib/user-paths";
 
 export const metadata = createNoIndexMetadata({
   title: "Sign Out",
-  description: "Sign out of your Question Call session.",
+  description: "Sign out of your QuestionCall session.",
 });
 
 export default async function SignOutPage() {

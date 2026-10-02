@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { connectToDatabase } from "@/lib/mongodb";
@@ -42,6 +43,9 @@ export async function POST(req: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 },
       );
+    }
+    if (courseId && !Types.ObjectId.isValid(courseId)) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
     await connectToDatabase();

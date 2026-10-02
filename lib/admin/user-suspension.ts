@@ -1,3 +1,5 @@
+import { Types } from "mongoose";
+
 import { connectToDatabase } from "@/lib/mongodb";
 import User from "@/models/User";
 import Channel from "@/models/Channel";
@@ -26,7 +28,7 @@ export async function toggleUserSuspension(
 ): Promise<ToggleSuspensionResult> {
   await connectToDatabase();
 
-  const userToSuspend = await User.findById(userId);
+  const userToSuspend = Types.ObjectId.isValid(userId) ? await User.findById(userId) : null;
   if (!userToSuspend) {
     return { ok: false, error: "User not found", status: 404 };
   }

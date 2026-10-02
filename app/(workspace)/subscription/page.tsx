@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const metadata = createNoIndexMetadata({
   title: "Subscription",
-  description: "Manage your Question Call subscription and question limits.",
+  description: "Manage your QuestionCall subscription and question limits.",
 });
 
 export default async function SubscriptionPage() {

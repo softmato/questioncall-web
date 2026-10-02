@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Note, { NOTE_FILE_TYPES, NOTE_VISIBILITY } from "@/models/Note";
@@ -17,6 +18,9 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     await connectToDatabase();
 
     const note = await Note.findById(id)
@@ -80,6 +84,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     await connectToDatabase();
 
     const note = await Note.findById(id);
@@ -193,6 +200,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     await connectToDatabase();
 
     const note = await Note.findById(id);

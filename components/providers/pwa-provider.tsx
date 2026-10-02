@@ -53,7 +53,7 @@ export function PWAProvider() {
 
       hasShownUpdateToastRef.current = true;
 
-      toast.info("A new version of Question Call is ready.", {
+      toast.info("A new version of QuestionCall is ready.", {
         duration: 15000,
         action: {
           label: "Refresh",

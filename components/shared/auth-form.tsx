@@ -24,6 +24,8 @@ type AuthFormProps = {
   mode: "login" | "register";
   role?: "STUDENT" | "TEACHER";
   callbackUrl?: string;
+  /** Message for a sign-in that bounced back here, e.g. a refused Google account. */
+  initialError?: string;
 };
 
 const defaultPathByRole = {
@@ -31,15 +33,15 @@ const defaultPathByRole = {
   TEACHER: "/",
 } as const;
 
-export function AuthForm({ mode, role, callbackUrl }: AuthFormProps) {
+export function AuthForm(props: AuthFormProps) {
   return (
     <Suspense fallback={<div>Loading form...</div>}>
-      <AuthFormInner mode={mode} role={role} callbackUrl={callbackUrl} />
+      <AuthFormInner {...props} />
     </Suspense>
   );
 }
 
-function AuthFormInner({ mode, role, callbackUrl }: AuthFormProps) {
+function AuthFormInner({ mode, role, callbackUrl, initialError }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const refCodeRaw = searchParams.get("ref");
@@ -62,7 +64,7 @@ function AuthFormInner({ mode, role, callbackUrl }: AuthFormProps) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(initialError ?? null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -201,7 +203,13 @@ function AuthFormInner({ mode, role, callbackUrl }: AuthFormProps) {
       });
 
       if (signInResult?.error) {
-        throw new Error("Invalid email or password.");
+        // A thrown authorize() error (rate limit, suspended, deleted) arrives
+        // as its message; a plain wrong password as "CredentialsSignin".
+        throw new Error(
+          signInResult.error === "CredentialsSignin"
+            ? "Invalid email or password."
+            : signInResult.error,
+        );
       }
 
       keepSubmitting = true;
@@ -296,6 +304,8 @@ function AuthFormInner({ mode, role, callbackUrl }: AuthFormProps) {
                 onChange={(event) => setOtpCode(event.target.value)}
                 placeholder="000000"
                 type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 maxLength={6}
                 value={otpCode}
               />
@@ -343,6 +353,7 @@ function AuthFormInner({ mode, role, callbackUrl }: AuthFormProps) {
               type="button"
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground focus:outline-none"
               onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
                 <EyeOffIcon className="h-5 w-5" />
@@ -399,7 +410,7 @@ function AuthFormInner({ mode, role, callbackUrl }: AuthFormProps) {
               ? "Signing up..."
               : "Signing in..."
             : isRegister
-              ? "Signup"
+              ? "Sign Up"
               : "Sign In"}
         </Button>
 

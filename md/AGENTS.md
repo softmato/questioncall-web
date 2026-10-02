@@ -1,4 +1,4 @@
-# Question Call — Agent Documentation
+# QuestionCall — Agent Documentation
 
 ---
 
@@ -16,7 +16,7 @@
 
 ## What Are We Building?
 
-**Question Call** is an academic platform with two main portals:
+**QuestionCall** is an academic platform with two main portals:
 
 | Portal | Purpose |
 |--------|---------|

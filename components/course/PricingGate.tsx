@@ -186,7 +186,7 @@ export function PricingGate({
 
       {pricingModel === "SUBSCRIPTION_INCLUDED" && !hasActiveSubscription ? (
         <Button asChild size="lg" className="w-full">
-          <a href="/subscription">View subscription plans</a>
+          <Link href="/subscription">View subscription plans</Link>
         </Button>
       ) : null}
 

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Types } from "mongoose";
+
 import {
   createQuizGenerationLog,
   generateUniqueQuestionsForTopic,
@@ -260,6 +262,9 @@ export async function seedSingleQuizTopic(input: {
   topicId: string;
   count?: number;
 }) {
+  if (!Types.ObjectId.isValid(input.topicId)) {
+    throw new QuizSeedHttpError(404, { error: "Quiz topic not found." });
+  }
   const [config, topic] = await Promise.all([
     getPlatformConfig(),
     QuizTopic.findById(input.topicId).lean(),
