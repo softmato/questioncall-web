@@ -165,6 +165,11 @@ async function chapterOrder(userId: string, body: Body): Promise<Order | NextRes
  * Start a Softmato hosted checkout: price the item server-side, raise (or reuse)
  * an invoice, and hand back a 30-minute checkout URL. Provisioning happens only
  * in settleSoftmatoInvoice, from the webhook or the return page.
+ *
+ * Refusals are plain JSON errors. Once the order is good, the answer streams as
+ * NDJSON: a `{ step }` line right before each Softmato call, so the hand-off
+ * screen in SoftmatoPay moves on real work, then one last line shaped like the
+ * old JSON body (`{ checkoutUrl }` or `{ error, manualFallback }`).
  */
 export async function POST(req: NextRequest) {
   const session = await getSafeServerSession();
@@ -210,37 +215,56 @@ export async function POST(req: NextRequest) {
       metadata: order.metadata,
     }));
 
-  try {
-    const softmato = getSoftmato();
-    // external_ref is idempotent on Softmato's side: a retry returns the same invoice.
-    const invoice = await softmato.createInvoice({
-      external_ref: `qc_${txn._id}`,
-      customer: { external_ref: user.id, name: user.name || user.email || "QuestionCall user", email: user.email ?? undefined },
-      lines: [{ description: order.title.slice(0, 200), quantity: 1, unit_price_minor: toPaisa(order.amount) }],
-      presentation: { plan_name: order.title.slice(0, 80), billing_period: order.billingPeriod },
-    });
-    if (txn.reference !== invoice.invoice_id) {
-      txn.reference = invoice.invoice_id;
-      await txn.save();
-    }
+  // Return to whichever host the buyer is on (buy.questioncall.com for the app
+  // hand-off). Softmato refuses any host not registered against the credential.
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const encoder = new TextEncoder();
 
-    // Return to whichever host the buyer is on (buy.questioncall.com for the app
-    // hand-off). Softmato refuses any host not registered against the credential.
-    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-    const { checkout_url } = await softmato.createCheckout({
-      invoice_id: invoice.invoice_id,
-      return_url: `https://${host}/payment/softmato/return?ref=${txn._id}`,
-    });
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (line: object) => controller.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
 
-    return NextResponse.json({ checkoutUrl: checkout_url });
-  } catch (error) {
-    // Softmato down, misconfigured, or refusing: the buyer can't pay online, so
-    // the page reveals the manual eSewa fallback. Our own validation above
-    // (already unlocked, bad coupon, …) never reaches here.
-    console.error("[POST /api/payments/softmato/checkout]", error);
-    return NextResponse.json(
-      { error: "Online payment is unavailable right now.", manualFallback: true },
-      { status: 503 },
-    );
-  }
+      try {
+        const softmato = getSoftmato();
+
+        send({ step: "invoice" });
+        // external_ref is idempotent on Softmato's side: a retry returns the same invoice.
+        const invoice = await softmato.createInvoice({
+          external_ref: `qc_${txn._id}`,
+          customer: { external_ref: user.id, name: user.name || user.email || "QuestionCall user", email: user.email ?? undefined },
+          lines: [{ description: order.title.slice(0, 200), quantity: 1, unit_price_minor: toPaisa(order.amount) }],
+          presentation: { plan_name: order.title.slice(0, 80), billing_period: order.billingPeriod },
+        });
+        if (txn.reference !== invoice.invoice_id) {
+          txn.reference = invoice.invoice_id;
+          await txn.save();
+        }
+
+        send({ step: "session" });
+        const { checkout_url } = await softmato.createCheckout({
+          invoice_id: invoice.invoice_id,
+          return_url: `https://${host}/payment/softmato/return?ref=${txn._id}`,
+        });
+
+        send({ checkoutUrl: checkout_url });
+      } catch (error) {
+        // Softmato down, misconfigured, or refusing: the buyer can't pay online, so
+        // the page reveals the manual eSewa fallback. Our own validation above
+        // (already unlocked, bad coupon, …) never reaches here.
+        console.error("[POST /api/payments/softmato/checkout]", error);
+        send({ error: "Online payment is unavailable right now.", manualFallback: true });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      // Per-person and live: never cached, never buffered by a proxy.
+      "Cache-Control": "private, no-store",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
