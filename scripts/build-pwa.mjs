@@ -29,8 +29,11 @@ function run(command, args, cwd) {
   if (status !== 0) process.exit(status ?? 1);
 }
 
+// The app repo is private: GITHUB_TOKEN (a read-only token for it, set on the
+// build host) lets the clone in. Without it the clone only works while public.
 if (!existsSync(app)) {
-  run("git", ["clone", "--depth", "1", "https://github.com/softmato/questioncall-app.git", `"${app}"`], web);
+  const auth = process.env.GITHUB_TOKEN ? `x-access-token:${process.env.GITHUB_TOKEN}@` : "";
+  run("git", ["clone", "--depth", "1", `https://${auth}github.com/softmato/questioncall-app.git`, `"${app}"`], web);
 }
 // --include=dev: Vercel builds with NODE_ENV=production, which would skip the
 // app's devDependencies — and its postinstall (patch-package) is one of them.
