@@ -48,3 +48,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 scripts/migratedb.ts
+
+# local build/lint timing logs
+.duration-*.log
