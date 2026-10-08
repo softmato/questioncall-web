@@ -1,6 +1,8 @@
 import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
+import { markCallSessionAsMissed } from "@/lib/call-expiration";
+import { CALL_STALE_TIMEOUT_MS } from "@/lib/call-utils";
 import { connectToDatabase } from "@/lib/mongodb";
 import { getAuthenticatedUser } from "@/lib/unified-auth";
 import CallSession from "@/models/CallSession";
@@ -22,7 +24,9 @@ export async function GET(request: Request, context: RouteParams) {
     await connectToDatabase();
 
     const callSession = await CallSession.findById(id)
-      .select("channelId teacherId studentId callerId status mode roomName startedAt endedAt")
+      .select(
+        "channelId teacherId studentId callerId status mode roomName startedAt endedAt createdAt",
+      )
       .lean();
 
     if (!callSession) {
@@ -36,6 +40,23 @@ export async function GET(request: Request, context: RouteParams) {
       return NextResponse.json({ error: "Not a participant" }, { status: 403 });
     }
 
+    // Backstop for the ring timeout in /calls/create: if that invocation was cut
+    // short and every client died too, nothing would ever end the ring. Both
+    // clients poll this while ringing, so the first look at a stale one ends it.
+    let status = callSession.status;
+    const createdAt = (callSession as { createdAt?: Date }).createdAt;
+    if (
+      status === "RINGING" &&
+      createdAt &&
+      Date.now() - new Date(createdAt).getTime() > CALL_STALE_TIMEOUT_MS
+    ) {
+      const doc = await CallSession.findById(id);
+      if (doc) {
+        status = (await markCallSessionAsMissed({ callSession: doc, reason: "server_timeout" }))
+          .status;
+      }
+    }
+
     const [teacher, student] = await Promise.all([
       User.findById(teacherId).select("name image").lean(),
       User.findById(studentId).select("name image").lean(),
@@ -47,7 +68,7 @@ export async function GET(request: Request, context: RouteParams) {
       teacherId,
       studentId,
       callerId: callSession.callerId?.toString() ?? null,
-      status: callSession.status,
+      status,
       mode: callSession.mode,
       roomName: callSession.roomName,
       startedAt: callSession.startedAt ?? null,

@@ -37,6 +37,12 @@ export type ExpoMessage = {
    * native is guaranteed to pick up.
    */
   dataOnly?: boolean;
+  /**
+   * Seconds FCM may hold the message for an offline device. Unset means the
+   * provider default — four weeks on FCM — which for a call push meant a phone
+   * coming back online rang for a call that had ended long before.
+   */
+  ttl?: number;
 };
 
 type ExpoTicketOk = { status: "ok"; id: string };
@@ -67,6 +73,7 @@ async function sendChunk(
     // whether to play a ringtone (CallKeep does for incoming calls).
     sound: message.dataOnly ? null : message.sound !== undefined ? message.sound : "default",
     ...(message.categoryId ? { categoryId: message.categoryId } : {}),
+    ...(message.ttl !== undefined ? { ttl: message.ttl } : {}),
     // Only meaningful on a rendered notification; a data-only message has no
     // tray UI for the image to attach to.
     ...(message.image && !message.dataOnly

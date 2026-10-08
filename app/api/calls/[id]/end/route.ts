@@ -46,10 +46,20 @@ export async function POST(request: Request, context: RouteParams) {
     // Mark ended if it hasn't already been marked gracefully
     const wasAlreadyEnded = callSession.status === "ENDED" || callSession.status === "MISSED" || callSession.status === "REJECTED";
 
-    if (!wasAlreadyEnded) {
-      callSession.status = "ENDED";
-      callSession.endedAt = new Date();
-      await callSession.save();
+    // Both sides hanging up together (or the survivor's 12s auto-end racing a
+    // late hangup) used to both pass the check above and write two "call
+    // ended" history entries. Only the request that actually flips it goes on.
+    const transitioned = wasAlreadyEnded
+      ? null
+      : await CallSession.findOneAndUpdate(
+          { _id: id, status: { $nin: ["ENDED", "MISSED", "REJECTED"] } },
+          { $set: { status: "ENDED", endedAt: new Date() } },
+          { new: true },
+        );
+
+    if (transitioned) {
+      callSession.status = transitioned.status;
+      callSession.endedAt = transitioned.endedAt;
 
       // Calculate duration in seconds
       const startedAt = callSession.startedAt ? new Date(callSession.startedAt).getTime() : callSession.createdAt ? new Date(callSession.createdAt).getTime() : 0;

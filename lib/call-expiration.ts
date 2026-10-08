@@ -104,16 +104,34 @@ export async function markCallSessionAsMissed({
     };
   }
 
+  // Conditional write: the caller's own timeout, the server's ring timeout and
+  // an accept can all land together, and only one of them may move the call.
+  const endedAt = new Date();
+  const transitioned = await CallSession.updateOne(
+    { _id: callSession._id, status: "RINGING" },
+    { $set: { status: "MISSED", endedAt } },
+  );
+  if (transitioned.modifiedCount === 0) {
+    const current = await CallSession.findById(callSession._id)
+      .select("status")
+      .lean<{ status: CallStatus } | null>();
+    return {
+      callSessionId,
+      channelId,
+      status: current?.status ?? callSession.status,
+      notifiedUserIds: [],
+      skipped: true,
+    };
+  }
+  callSession.status = "MISSED";
+  callSession.endedAt = endedAt;
+
   const callerSnapshot = await resolveCallerSnapshot({
     callSession,
     actorUserId,
     callerName,
     reason,
   });
-
-  callSession.status = "MISSED";
-  callSession.endedAt = new Date();
-  await callSession.save();
 
   const notifiedUserIds = actorUserId
     ? participantIds.filter((participantId) => participantId !== actorUserId)

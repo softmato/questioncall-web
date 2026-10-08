@@ -4,7 +4,7 @@ import { AccessToken } from "livekit-server-sdk";
 
 import { logCallLifecycle } from "@/lib/call-logging";
 import { CALL_RATE_LIMITS } from "@/lib/call-policies";
-import { endAbandonedCallSession } from "@/lib/call-expiration";
+import { endAbandonedCallSession, markCallSessionAsMissed } from "@/lib/call-expiration";
 import { createCallPushActionToken } from "@/lib/calls/push-action-token";
 import { processExpiredChannels } from "@/lib/channel-expiration";
 import {
@@ -31,10 +31,18 @@ import User from "@/models/User";
  */
 const RING_FALLBACK_DELAY_MS = 5000;
 
-// after() runs on the same invocation, so the fallback's delay counts toward
-// this route's wall clock. Default (10s) leaves no headroom above the 5s wait
-// plus the LiveKit/Mongo/Pusher work before it.
-export const maxDuration = 30;
+/**
+ * Server-side ring timeout. Nothing else ends an unanswered call: no cron is
+ * scheduled for /api/cron/expire-calls, and a caller whose app dies mid-ring
+ * never sends /missed — so the session sat RINGING, the caller's screen (if it
+ * survived) rang for ever, and the callee's device was never told to stop.
+ * Slightly longer than the 45s client rings so a live client always wins.
+ */
+const RING_TIMEOUT_MS = 50_000;
+
+// after() runs on the same invocation, so both delays above count toward this
+// route's wall clock.
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
@@ -318,22 +326,6 @@ export async function POST(request: Request) {
 
     const { emitIncomingCall } = await import("@/lib/pusher/pusherServer");
 
-    // Pusher is awaited — if it fails the callee never rings, which we want
-    // surfaced as an error. The push notification is fire-and-forget; it's a
-    // wake-up signal not a correctness requirement.
-    await emitIncomingCall(otherUserId, {
-      callSessionId,
-      channelId,
-      callerName: user.name || "A user",
-      callerImage,
-      callerId: userId,
-      mode: mode as "AUDIO" | "VIDEO",
-      token: calleeToken,
-      serverUrl: wsUrl || null,
-      timerDeadline: timerDeadlineIso,
-      timeExtensionCount,
-    });
-
     // Lets the callee decline from the Android call notification when there is
     // no app process to hold a bearer token — see lib/calls/push-action-token.
     // Null when the secret is missing: the call must still ring, and the client
@@ -346,7 +338,14 @@ export async function POST(request: Request) {
         }
       : {};
 
-    void sendPushNotificationToUser(otherUserId, {
+    // The push is the only transport that reaches a backgrounded or killed app,
+    // so it leaves first and is never gated on Pusher. It used to be sent only
+    // after Pusher was awaited, as a bare `void` promise: a Pusher error 500'd
+    // the call before any push went out (and the redial was then deduped onto
+    // that dead session for a minute), and an un-awaited promise in a
+    // serverless function is not guaranteed to finish once the response is
+    // sent. after() below awaits it.
+    const primaryPush = sendPushNotificationToUser(otherUserId, {
       type: "SYSTEM",
       title: user.name || "Incoming Call",
       message: mode === "VIDEO" ? "📹 Video call" : "📞 Audio call",
@@ -361,6 +360,23 @@ export async function POST(request: Request) {
       },
     }).catch((err) => {
       console.warn("[calls/create] push notification failed:", err);
+    });
+
+    // Pusher reaches a live app fastest, but a failure here must not fail the
+    // call — the push above is already on its way.
+    await emitIncomingCall(otherUserId, {
+      callSessionId,
+      channelId,
+      callerName: user.name || "A user",
+      callerImage,
+      callerId: userId,
+      mode: mode as "AUDIO" | "VIDEO",
+      token: calleeToken,
+      serverUrl: wsUrl || null,
+      timerDeadline: timerDeadlineIso,
+      timeExtensionCount,
+    }).catch((err) => {
+      console.error("[calls/create] Pusher incoming-call emit failed:", err);
     });
 
     // ── Ring fallback tier ──────────────────────────────────────────────────
@@ -397,6 +413,7 @@ export async function POST(request: Request) {
     // through the same claim; before it did, the duplicate was drawn by
     // Firebase where no client-side dedupe could reach it.
     after(async () => {
+      await primaryPush;
       try {
         await new Promise((resolve) => setTimeout(resolve, RING_FALLBACK_DELAY_MS));
 
@@ -404,6 +421,8 @@ export async function POST(request: Request) {
           .select("status")
           .lean<{ status: string } | null>();
 
+        // A call never moves back to RINGING, so once it has left there is
+        // nothing more for this invocation to do — fallback or timeout.
         if (!current || (current.status !== "CREATED" && current.status !== "RINGING")) {
           return;
         }
@@ -445,6 +464,20 @@ export async function POST(request: Request) {
         // Never let the fallback surface as a call failure — the primary push
         // and Pusher emit have both already gone out by this point.
         console.warn("[calls/create] ring fallback push failed:", err);
+      }
+
+      try {
+        await new Promise((resolve) =>
+          setTimeout(resolve, RING_TIMEOUT_MS - RING_FALLBACK_DELAY_MS),
+        );
+        const stale = await CallSession.findById(callSessionId);
+        if (stale?.status === "RINGING") {
+          // Notifies both sides (Pusher) and tells the callee's device to stop
+          // ringing (missed-call push) — see markCallSessionAsMissed.
+          await markCallSessionAsMissed({ callSession: stale, reason: "server_timeout" });
+        }
+      } catch (err) {
+        console.warn("[calls/create] server ring timeout failed:", err);
       }
     });
 

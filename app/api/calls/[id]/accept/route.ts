@@ -83,9 +83,20 @@ export async function POST(request: Request, context: RouteParams) {
       );
     }
 
-    callSession.status = "ACTIVE";
-    callSession.startedAt = new Date();
-    await callSession.save();
+    // Conditional write, not read-then-save: the caller cancelling, the server
+    // timeout, or the user's other device can all move the call in the gap
+    // since the read above, and the loser must get a 409 rather than both
+    // "winning" — a callee alone in a call the caller already gave up on.
+    const transitioned = await CallSession.updateOne(
+      { _id: id, status: "RINGING" },
+      { $set: { status: "ACTIVE", startedAt: new Date() } },
+    );
+    if (transitioned.modifiedCount === 0) {
+      return NextResponse.json(
+        { error: "Call cannot be accepted (no longer ringing)" },
+        { status: 409 },
+      );
+    }
 
     // ── Generate LiveKit token for the accepting user (OPT-1) ──
     // By returning the token here we eliminate a separate GET /token round-trip,

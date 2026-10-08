@@ -17,6 +17,8 @@ type PushSubscriptionInput = {
 
 export const runtime = "nodejs";
 
+const STALE_MOBILE_TOKEN_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
+
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser(request);
 
@@ -81,15 +83,20 @@ export async function POST(request: Request) {
     },
   );
 
-  // Remove any other subscriptions for the same user+platform that have a
-  // different endpoint. This cleans up stale tokens (e.g. old Expo Go tokens
-  // lingering after a standalone EAS build registers a new token).
-  // Only applies to mobile platforms — web can have multiple browser subs.
+  // Clean up this user's stale mobile tokens (old Expo Go installs, reinstalls).
+  //
+  // Only STALE ones. This used to delete every other token on the platform,
+  // which made a user's phones evict each other: whichever device opened the
+  // app last was the only one push could reach, so calls to a backgrounded or
+  // killed phone silently never arrived. Every launch re-subscribes and bumps
+  // updatedAt, so a token untouched this long belongs to an install nobody
+  // opens; dead tokens are also pruned by expo-push on DeviceNotRegistered.
   if (platform === "android" || platform === "ios") {
     await PushSubscriptionModel.deleteMany({
       userId: user.id,
       platform,
       endpoint: { $ne: subscription.endpoint },
+      updatedAt: { $lt: new Date(Date.now() - STALE_MOBILE_TOKEN_MS) },
     }).catch(() => null);
   }
 

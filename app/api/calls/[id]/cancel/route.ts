@@ -55,9 +55,17 @@ export async function POST(request: Request, context: RouteParams) {
       );
     }
 
-    callSession.status = "MISSED";
-    callSession.endedAt = new Date();
-    await callSession.save();
+    // Conditional write — see /accept. Cancel and accept racing must not both win.
+    const transitioned = await CallSession.updateOne(
+      { _id: id, status: "RINGING" },
+      { $set: { status: "MISSED", endedAt: new Date() } },
+    );
+    if (transitioned.modifiedCount === 0) {
+      return NextResponse.json(
+        { error: "Call cannot be cancelled (no longer ringing)" },
+        { status: 409 },
+      );
+    }
 
     // Notify the other user that the call was cancelled
     const otherUserId = userId === teacherId ? studentId : teacherId;

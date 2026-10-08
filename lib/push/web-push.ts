@@ -61,8 +61,8 @@ type NotificationPayload = {
    */
   forceSystemRendered?: boolean;
   /**
-   * Web-only follow-up to an incoming call that stopped ringing unanswered: it
-   * shares the call's tag, so it replaces the ringing notification. See
+   * Follow-up to an incoming call that stopped ringing unanswered: replaces the
+   * ringing notification on web, stops the ring on Android. See
    * sendMissedCallWebPush.
    */
   endedCallId?: string;
@@ -79,6 +79,9 @@ type WebPushPayload = {
   /** Present only on an incoming call; public/sw.js draws it as one. */
   call?: { id: string; video: boolean; declineToken?: string };
 };
+
+/** Matches the 45s ring on the device. */
+const CALL_PUSH_TTL_SECONDS = 45;
 
 let vapidConfigured = false;
 
@@ -138,11 +141,20 @@ function buildWebPushPayload(notification: NotificationPayload): WebPushPayload 
 }
 
 /**
- * Replace a call's ringing Web Push notification with "Missed call" once the
- * call stops ringing unanswered (caller hung up, or nobody picked up). A web
- * notification stays until something replaces it; Android's native ring
- * retires itself, so this skips Android. Replaced rather than silently closed:
- * Safari revokes subscriptions whose pushes show nothing.
+ * "Missed call", sent once a call stops ringing unanswered (caller hung up, or
+ * nobody picked up).
+ *
+ * Web: shares the call's tag, so it replaces the ringing notification. Replaced
+ * rather than silently closed: Safari revokes subscriptions whose pushes show
+ * nothing.
+ *
+ * Android: this is also the only "stop ringing" signal a backgrounded or killed
+ * app ever gets — Pusher cannot reach it. Without it the phone rang on for the
+ * full 45s after the caller had hung up, and answering connected to nothing.
+ * The payload carries `endedCallSessionId` (deliberately NOT `callSessionId`,
+ * which every binary treats as an incoming ring); CallNotificationService stops
+ * the ring for that id and lets the notification draw as an ordinary missed
+ * call, which is also all an older binary does with it.
  */
 export function sendMissedCallWebPush(
   userId: string,
@@ -238,8 +250,9 @@ export async function sendPushNotificationToUser(
   let webErrorCount = 0;
 
   // ── Android → Expo push ──────────────────────────────────────────────────
-  if (androidSubs.length > 0 && !notification.endedCallId) {
+  if (androidSubs.length > 0) {
     const isIncomingCall = Boolean(notification.extraData?.callSessionId);
+    const isEndedCall = Boolean(notification.endedCallId);
     // Ring-fallback tier: same call, same channel, same high priority — the
     // ONLY thing that changes is who renders it. See `forceSystemRendered`.
     const systemRendered = notification.forceSystemRendered === true;
@@ -278,6 +291,7 @@ export async function sendPushNotificationToUser(
         ...(isIncomingCall
           ? { title: resolvedTitle, body: notification.message }
           : {}),
+        ...(isEndedCall ? { endedCallSessionId: notification.endedCallId! } : {}),
       },
       channelId: theme.channelId,
       // Calls are ALWAYS high priority, independent of the theme lookup.
@@ -286,7 +300,12 @@ export async function sendPushNotificationToUser(
       // silently drop these to normal priority — which Doze defers, meaning a
       // killed device would simply never ring, with nothing logged anywhere.
       // Key off the payload we already trust instead.
-      priority: isIncomingCall ? "high" : theme.priority,
+      // An ended-call push is high priority too: it is what silences a ring.
+      priority: isIncomingCall || isEndedCall ? "high" : theme.priority,
+      // A ring is worthless once the call is over. Without a TTL FCM keeps the
+      // message for weeks, so a phone that was offline or in deep Doze rang on
+      // reconnect for a call that had ended long ago.
+      ttl: isIncomingCall ? CALL_PUSH_TTL_SECONDS : undefined,
       sound: theme.sound,
       categoryId: isIncomingCall ? "incoming_call" : undefined,
       // A call is data-only *unless* it is the fallback tier, whose entire

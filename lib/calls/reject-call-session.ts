@@ -75,9 +75,16 @@ export async function rejectCallSession(params: {
     };
   }
 
-  callSession.status = "REJECTED";
-  callSession.endedAt = new Date();
-  await callSession.save();
+  // Conditional write: the JS reject and the push-reject POST are fired
+  // together on purpose, and with read-then-save both used to pass the check
+  // above and both write — two "declined" history entries and two events.
+  const transitioned = await CallSession.updateOne(
+    { _id: callSession._id, status: "RINGING" },
+    { $set: { status: "REJECTED", endedAt: new Date() } },
+  );
+  if (transitioned.modifiedCount === 0) {
+    return { ok: false, status: 409, error: "Call cannot be rejected (no longer ringing)" };
+  }
 
   // Notify the caller that the call was rejected, fan out to the callee's
   // other devices so they stop ringing, and fetch the caller's name for the
