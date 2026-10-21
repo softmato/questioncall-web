@@ -316,6 +316,13 @@ export async function POST(request: Request) {
       ]);
 
     const callerImage = callerUser?.userImage || null;
+    // For the phone's native ring screen, which downloads it itself. Plain web
+    // URLs only: a data: URL could push the payload past FCM's 4 KB limit, and
+    // then the call would not ring at all.
+    const pushCallerImage =
+      callerImage && /^https?:\/\//.test(callerImage) && callerImage.length <= 1024
+        ? callerImage
+        : null;
     const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
     const calleeIsOnline = calleeUser?.lastActiveAt
       ? Date.now() - new Date(calleeUser.lastActiveAt).getTime() < ONLINE_THRESHOLD_MS
@@ -356,6 +363,7 @@ export async function POST(request: Request) {
         callerId: userId,
         callerName: user.name || "Someone",
         mode,
+        ...(pushCallerImage ? { callerImage: pushCallerImage } : {}),
         ...declineExtras,
       },
     }).catch((err) => {
@@ -447,6 +455,7 @@ export async function POST(request: Request) {
             callerId: userId,
             callerName: user.name || "Someone",
             mode,
+            ...(pushCallerImage ? { callerImage: pushCallerImage } : {}),
             // Same token as the primary — still inside its TTL at this point,
             // and this tier is often the ONLY push that reaches the device, so
             // the notification it produces must be just as answerable.
