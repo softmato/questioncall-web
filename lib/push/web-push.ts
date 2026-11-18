@@ -294,14 +294,13 @@ export async function sendPushNotificationToUser(
         ...(isEndedCall ? { endedCallSessionId: notification.endedCallId! } : {}),
       },
       channelId: theme.channelId,
-      // Calls are ALWAYS high priority, independent of the theme lookup.
-      // getNotificationTheme() only classifies a call by (type === "SYSTEM" &&
-      // href starts with /call), so any future change to the call href would
-      // silently drop these to normal priority — which Doze defers, meaning a
-      // killed device would simply never ring, with nothing logged anywhere.
-      // Key off the payload we already trust instead.
-      // An ended-call push is high priority too: it is what silences a ring.
-      priority: isIncomingCall || isEndedCall ? "high" : theme.priority,
+      // Always high, not theme.priority. After 2–3 days unused Android parks
+      // the app in a low App Standby bucket and deep Doze, where normal-
+      // priority FCM waits for maintenance windows hours apart — users saw
+      // notifications simply stop. Calls and ended-call pushes were already
+      // high; every other push here renders a visible notification, which is
+      // what FCM requires of high priority.
+      priority: "high",
       // A ring is worthless once the call is over. Without a TTL FCM keeps the
       // message for weeks, so a phone that was offline or in deep Doze rang on
       // reconnect for a call that had ended long ago.
@@ -367,9 +366,11 @@ export async function sendPushNotificationToUser(
           },
           JSON.stringify(payload),
           // A ring is dead after CALL_RING_TIMEOUT_MS; `high` lets it through Doze.
+          // Everything else: a dozing phone used to drop any message older than
+          // 5 minutes, so a PWA user who hadn't touched the phone got nothing.
           payload.tag.startsWith("call-")
             ? { TTL: payload.call ? 30 : 300, urgency: "high" }
-            : { TTL: 300 },
+            : { TTL: 24 * 60 * 60, urgency: "high" },
         );
         return { status: "ok" as const };
       } catch (error) {
